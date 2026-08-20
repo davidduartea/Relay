@@ -34,6 +34,17 @@ export class RoomsService {
     return room ?? undefined;
   }
 
+  /**
+   * Comprobación barata de existencia para el gateway.
+   *
+   * Cuenta en vez de traer la fila: al entrar a una sala sólo interesa si
+   * existe, y traer nombre y slug para tirarlos es trabajo que la base hace
+   * en cada join.
+   */
+  async existsById(id: string): Promise<boolean> {
+    return (await this.prisma.room.count({ where: { id } })) > 0;
+  }
+
   async create(input: CreateRoomInput): Promise<Room> {
     try {
       return await this.prisma.room.create({ data: input, select: SHAPE });

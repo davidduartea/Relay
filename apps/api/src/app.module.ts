@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
 import { AuthModule } from "./auth/auth.module";
+import { ChatModule } from "./chat/chat.module";
 import { loadEnvironment } from "./config/environment";
 import { HealthController } from "./health/health.controller";
 import { RoomsModule } from "./rooms/rooms.module";
@@ -20,6 +21,7 @@ import { RoomsModule } from "./rooms/rooms.module";
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: loadEnvironment }),
     AuthModule,
+    ChatModule,
     RoomsModule,
   ],
   controllers: [HealthController],

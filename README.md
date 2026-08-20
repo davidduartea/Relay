@@ -11,8 +11,8 @@ El objetivo del proyecto no es el chat en sí, sino ejercitar las partes que nor
 | 0 | Base del monorepo, contrato compartido, CI | ✅ Listo |
 | 1a | Persistencia con Prisma y Postgres | ✅ Listo |
 | 1b | Auth con JWT y guards | ✅ Listo |
-| 1c | Gateway de WebSocket | ⏳ Siguiente |
-| 2 | Unit, integración y E2E con dos navegadores | ⏳ |
+| 1c | Gateway de WebSocket | ✅ Listo |
+| 2 | E2E con dos navegadores | ⏳ Siguiente |
 | 3 | Accesibilidad con axe dentro de los E2E | ⏳ |
 
 ## Stack
@@ -67,6 +67,8 @@ apps/
       prisma/     PrismaService + PrismaModule
       auth/       JWT, guard global y decoradores
       config/     Validación del entorno con Zod
+      chat/       Gateway de WebSocket
+      messages/   Historial e idempotencia
       rooms/      Primer módulo de funcionalidad
   web/            Next.js — cliente del chat
 packages/
@@ -96,6 +98,14 @@ packages/
 **El refresh token lleva un `jti` único.** Sin él, dos tokens firmados dentro del mismo segundo salen idénticos: `iat` va en segundos, así que el payload entero coincide y con él la firma. La rotación entonces no rota nada. Hay un test de regresión para esto.
 
 **Login responde lo mismo exista o no la cuenta**, y verifica contra un hash de descarte cuando el correo no existe, para que tarde igual. Un mensaje o un tiempo distinto por caso convierte el login en un oráculo de qué correos están registrados.
+
+**El gateway autentica en un middleware del handshake, no en `handleConnection`.** Ahí el cliente ya recibió su evento `connect` y sólo después se le echa: para él es indistinguible de una caída de red, así que reintenta en bucle con el mismo token malo. Rechazar en el middleware llega como `connect_error`, que sí puede distinguir.
+
+**La presencia al salir se emite en `disconnecting`, no en `disconnect`.** Cuando salta el segundo, Socket.IO ya vació `client.rooms` y no queda a quién avisar.
+
+**Estar en la sala es la autorización para escribir en ella.** El autor sale del token, nunca del payload: si viniera del cliente, cualquiera podría publicar en nombre de otro cambiando un campo.
+
+**Los errores del gateway van por acknowledgement, no por excepción.** Una excepción llega al cliente como un evento suelto de error, sin forma de saber qué envío la provocó; el ack va atado a esa llamada concreta.
 
 **`healthz` no toca la base de datos.** Si el orquestador reinicia el contenedor cada vez que Postgres tiene un hipo, una degradación se convierte en una caída. La comprobación de dependencias irá en un `/readyz` aparte.
 
