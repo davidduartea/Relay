@@ -1,5 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 
+import { Public } from "../auth/public.decorator";
+
 export interface HealthResponse {
   status: "ok";
   uptimeSeconds: number;
@@ -12,6 +14,9 @@ export interface HealthResponse {
  * convertimos una degradación en una caída. La comprobación de dependencias
  * va en un `/readyz` aparte cuando exista la base.
  */
+// Público: un chequeo de liveness que exigiera credenciales no serviría
+// para lo que existe — el orquestador no tiene sesión.
+@Public()
 @Controller("healthz")
 export class HealthController {
   @Get()

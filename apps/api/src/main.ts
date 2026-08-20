@@ -4,8 +4,13 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
+import { assertSecretsDiffer, loadEnvironment } from "./config/environment";
 
 async function bootstrap(): Promise<void> {
+  // Se valida antes de construir la app para que un secreto mal puesto muera
+  // aquí, con un mensaje claro, y no en la primera petición que firme un token.
+  assertSecretsDiffer(loadEnvironment());
+
   const app = await NestFactory.create(AppModule);
 
   // No se registra un pipe de validación global: la validación se aplica por
