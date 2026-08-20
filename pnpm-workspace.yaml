@@ -7,6 +7,18 @@ packages:
 # aquí explícitamente. Un paquete comprometido normalmente entrega su payload
 # desde un postinstall, así que negarlos por defecto cierra esa vía.
 allowBuilds:
+  # Descarga los binarios del query engine, que son específicos de cada
+  # plataforma y por eso no pueden venir dentro del tarball. Sin este script
+  # Prisma no tiene con qué hablarle a Postgres. Es la única excepción real.
+  "@prisma/engines": true
+
+  # Su postinstall sólo ejecuta `prisma generate`. Lo corremos nosotros desde
+  # el script `db:generate`, que además queda encadenado al build: la
+  # generación pasa a ser un paso visible del pipeline en vez de un efecto
+  # secundario silencioso de `pnpm install`.
+  "@prisma/client": false
+  prisma: false
+
   "@swc/core": false
   esbuild: false
   sharp: false
@@ -19,7 +31,3 @@ strictDepBuilds: true
 # Rechaza versiones publicadas hace menos de 24h. La mayoría de los paquetes
 # comprometidos se retiran del registro en horas; esta ventana los evita.
 minimumReleaseAge: 1440
-
-# Versiones mínimas que cierran avisos de `pnpm audit` en dependencias
-# transitivas que no declaramos y por tanto no podemos subir de otra forma.
-overrides: {}

@@ -28,6 +28,26 @@ export default tseslint.config(
   },
 
   {
+    // Scripts sueltos de Node. No los cubre typescript-eslint, así que
+    // `no-undef` sí se aplica y hay que declararle los globals del entorno.
+    // Se listan a mano en vez de añadir el paquete `globals` por cuatro
+    // entradas: una dependencia menos que auditar.
+    files: ["**/*.mjs", "**/*.cjs", "**/*.js"],
+    rules: {
+      // En un script de línea de comandos, imprimir ES la interfaz.
+      "no-console": "off",
+    },
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        __dirname: "readonly",
+        Buffer: "readonly",
+      },
+    },
+  },
+
+  {
     files: ["apps/api/**/*.ts"],
     rules: {
       // Los decoradores de Nest usan clases vacías como marcadores de módulo.
