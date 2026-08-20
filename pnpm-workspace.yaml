@@ -1,0 +1,25 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# ─── Política de cadena de suministro ────────────────────────────────────────
+# Deny-by-default: pnpm no ejecuta scripts de instalación salvo que se marquen
+# aquí explícitamente. Un paquete comprometido normalmente entrega su payload
+# desde un postinstall, así que negarlos por defecto cierra esa vía.
+allowBuilds:
+  "@swc/core": false
+  esbuild: false
+  sharp: false
+  unrs-resolver: false
+
+# La instalación FALLA (no solo avisa) si aparece una dependencia con scripts
+# sin revisar. Convierte el CI en un bloqueo automático ante un paquete nuevo.
+strictDepBuilds: true
+
+# Rechaza versiones publicadas hace menos de 24h. La mayoría de los paquetes
+# comprometidos se retiran del registro en horas; esta ventana los evita.
+minimumReleaseAge: 1440
+
+# Versiones mínimas que cierran avisos de `pnpm audit` en dependencias
+# transitivas que no declaramos y por tanto no podemos subir de otra forma.
+overrides: {}
