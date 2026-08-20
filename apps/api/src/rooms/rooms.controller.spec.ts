@@ -12,6 +12,11 @@ const ROOM: Room = { id: "room-1", name: "General", slug: "general" };
 /**
  * Este archivo es el argumento a favor de la inyección de dependencias.
  *
+ * El servicio pasó de un Map en memoria a Postgres y aquí lo único que cambió
+ * fue `mockReturnValue` por `mockResolvedValue`: el doble tiene que devolver
+ * promesas porque ahora la firma es asíncrona. Ni una palabra sobre Prisma,
+ * ninguna base de datos levantada, ningún import nuevo.
+ *
  * El controlador se prueba con un `RoomsService` falso, y para lograrlo no hay
  * que parchear imports ni módulos: se le dice al contenedor "cuando alguien
  * pida RoomsService, entrega esto". El código de producción no cambia ni sabe
@@ -19,8 +24,8 @@ const ROOM: Room = { id: "room-1", name: "General", slug: "general" };
  */
 describe("RoomsController", () => {
   const service = {
-    findAll: vi.fn<() => Room[]>(),
-    findBySlug: vi.fn<(slug: string) => Room | undefined>(),
+    findAll: vi.fn(),
+    findBySlug: vi.fn(),
     create: vi.fn(),
   };
 
@@ -40,30 +45,30 @@ describe("RoomsController", () => {
     controller = moduleRef.get(RoomsController);
   });
 
-  it("devuelve la lista que da el servicio", () => {
-    service.findAll.mockReturnValue([ROOM]);
+  it("devuelve la lista que da el servicio", async () => {
+    service.findAll.mockResolvedValue([ROOM]);
 
-    expect(controller.list()).toEqual([ROOM]);
+    await expect(controller.list()).resolves.toEqual([ROOM]);
   });
 
-  it("busca por slug y devuelve la sala encontrada", () => {
-    service.findBySlug.mockReturnValue(ROOM);
+  it("busca por slug y devuelve la sala encontrada", async () => {
+    service.findBySlug.mockResolvedValue(ROOM);
 
-    expect(controller.bySlug("general")).toEqual(ROOM);
+    await expect(controller.bySlug("general")).resolves.toEqual(ROOM);
     expect(service.findBySlug).toHaveBeenCalledWith("general");
   });
 
-  it("lanza 404 cuando el slug no existe", () => {
-    service.findBySlug.mockReturnValue(undefined);
+  it("lanza 404 cuando el slug no existe", async () => {
+    service.findBySlug.mockResolvedValue(undefined);
 
-    expect(() => controller.bySlug("fantasma")).toThrow(NotFoundException);
+    await expect(controller.bySlug("fantasma")).rejects.toThrow(NotFoundException);
   });
 
-  it("delega la creación en el servicio", () => {
+  it("delega la creación en el servicio", async () => {
     const input = { name: "Frontend", slug: "frontend" };
-    service.create.mockReturnValue({ ...ROOM, ...input });
+    service.create.mockResolvedValue({ ...ROOM, ...input });
 
-    controller.create(input);
+    await controller.create(input);
 
     expect(service.create).toHaveBeenCalledWith(input);
   });

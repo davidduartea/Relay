@@ -40,6 +40,12 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @relay/shared build
 
+      # El postinstall de @prisma/client está bloqueado por la política de
+      # supply chain, así que la generación del cliente es un paso explícito.
+      # Va antes de typecheck porque los tipos de las tablas salen de aquí.
+      - name: Generate Prisma client
+        run: pnpm --filter @relay/api db:generate
+
       - name: Lint
         run: pnpm lint
 

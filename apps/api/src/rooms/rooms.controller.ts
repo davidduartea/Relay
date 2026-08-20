@@ -2,6 +2,7 @@ import { Body, Controller, Get, NotFoundException, Param, Post } from "@nestjs/c
 import { createRoomSchema } from "@relay/shared";
 import type { CreateRoomInput, Room } from "@relay/shared";
 
+import { Public } from "../auth/public.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { RoomsService } from "./rooms.service";
 
@@ -23,16 +24,20 @@ export class RoomsController {
    */
   constructor(private readonly rooms: RoomsService) {}
 
-  /** GET /rooms */
+  /** GET /rooms — abierto: el listado de salas no es secreto. */
+  @Public()
   @Get()
-  list(): Room[] {
+  list(): Promise<Room[]> {
+    // Devolver la promesa sin await es deliberado: Nest la resuelve por su
+    // cuenta antes de serializar. Un `async` aquí sólo añadiría un tick.
     return this.rooms.findAll();
   }
 
   /** GET /rooms/:slug */
+  @Public()
   @Get(":slug")
-  bySlug(@Param("slug") slug: string): Room {
-    const room = this.rooms.findBySlug(slug);
+  async bySlug(@Param("slug") slug: string): Promise<Room> {
+    const room = await this.rooms.findBySlug(slug);
 
     if (!room) {
       throw new NotFoundException(`No existe la sala "${slug}"`);
@@ -49,7 +54,7 @@ export class RoomsController {
    * `input` puede tratarse como válido sin comprobar nada.
    */
   @Post()
-  create(@Body(new ZodValidationPipe(createRoomSchema)) input: CreateRoomInput): Room {
+  create(@Body(new ZodValidationPipe(createRoomSchema)) input: CreateRoomInput): Promise<Room> {
     return this.rooms.create(input);
   }
 }

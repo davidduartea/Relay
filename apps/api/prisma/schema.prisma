@@ -1,0 +1,68 @@
+// Esquema de la base de datos.
+//
+// Las tablas y columnas van en snake_case vía @map porque es la convención de
+// Postgres, mientras que el cliente que consume TypeScript las ve en camelCase.
+// El mapeo evita tener que elegir entre una convención u otra.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  displayName  String   @map("display_name")
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  /// Hash del refresh token vigente. Se guarda hasheado por la misma razón
+  /// que la contraseña: quien lea la base no debe poder suplantar a nadie.
+  /// Ponerlo a null es el logout — invalida el token sin esperar a que expire.
+  ///
+  /// Una sola columna implica una sesión por usuario: entrar en un segundo
+  /// dispositivo cierra el primero. Para multi-dispositivo haría falta una
+  /// tabla `refresh_tokens` con una fila por sesión.
+  refreshTokenHash String? @map("refresh_token_hash")
+
+  messages Message[]
+
+  @@map("users")
+}
+
+model Room {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  messages Message[]
+
+  @@map("rooms")
+}
+
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  body      String
+  roomId    String   @map("room_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room   Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Aquí es donde el `clientId` del contrato compartido deja de ser una
+  // convención y pasa a ser una garantía: si el cliente reintenta un envío
+  // tras reconectar, la base rechaza el duplicado aunque la lógica de
+  // aplicación falle en detectarlo.
+  @@unique([roomId, clientId])
+  // El historial siempre se pide por sala y ordenado por fecha; sin este
+  // índice cada apertura de sala termina en un sequential scan.
+  @@index([roomId, createdAt])
+  @@map("messages")
+}
