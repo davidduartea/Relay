@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
@@ -8,12 +8,9 @@ import { AppModule } from "./app.module";
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
-  // whitelist descarta propiedades no declaradas en el DTO y forbidNonWhitelisted
-  // convierte su presencia en un 400. Sin esto, un cliente puede colar campos
-  // que luego alguien pasa a un `update` sin filtrar.
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-  );
+  // No se registra un pipe de validación global: la validación se aplica por
+  // handler con `ZodValidationPipe`, que usa los esquemas de @relay/shared.
+  // Un pipe global tendría que adivinar qué esquema corresponde a cada ruta.
 
   const origin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
   app.enableCors({ origin, credentials: true });
