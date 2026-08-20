@@ -13,6 +13,19 @@ import { z } from "zod";
 export const MESSAGE_MAX_LENGTH = 2000;
 export const DISPLAY_NAME_MAX_LENGTH = 40;
 export const PASSWORD_MIN_LENGTH = 12;
+export const ROOM_NAME_MAX_LENGTH = 60;
+
+/** minúsculas y números separados por guiones: `equipo-frontend`. */
+export const ROOM_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const createRoomSchema = z.object({
+  name: z.string().trim().min(1, "Ponle nombre a la sala").max(ROOM_NAME_MAX_LENGTH),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(ROOM_SLUG_PATTERN, "Sólo minúsculas, números y guiones"),
+});
 
 export const sendMessageSchema = z.object({
   roomId: z.uuid(),
@@ -46,6 +59,7 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Escribe tu contraseña"),
 });
 
+export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type JoinRoomInput = z.infer<typeof joinRoomSchema>;
 export type TypingInput = z.infer<typeof typingSchema>;
