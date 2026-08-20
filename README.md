@@ -12,6 +12,7 @@ El objetivo del proyecto no es el chat en sí, sino ejercitar las partes que nor
 | 1a | Persistencia con Prisma y Postgres | ✅ Listo |
 | 1b | Auth con JWT y guards | ✅ Listo |
 | 1c | Gateway de WebSocket | ✅ Listo |
+| 1d | UI del chat en Next.js | ✅ Listo |
 | 2 | E2E con dos navegadores | ⏳ Siguiente |
 | 3 | Accesibilidad con axe dentro de los E2E | ⏳ |
 
@@ -70,7 +71,11 @@ apps/
       chat/       Gateway de WebSocket
       messages/   Historial e idempotencia
       rooms/      Primer módulo de funcionalidad
-  web/            Next.js — cliente del chat
+  web/
+    src/
+      app/      Rutas: /, /login, /register, /chat
+      lib/      Cliente HTTP y almacén de sesión
+      modules/  auth/ y chat/
 packages/
   shared/         Contrato de eventos, modelos y esquemas Zod
 ```
@@ -106,6 +111,10 @@ packages/
 **Estar en la sala es la autorización para escribir en ella.** El autor sale del token, nunca del payload: si viniera del cliente, cualquiera podría publicar en nombre de otro cambiando un campo.
 
 **Los errores del gateway van por acknowledgement, no por excepción.** Una excepción llega al cliente como un evento suelto de error, sin forma de saber qué envío la provocó; el ack va atado a esa llamada concreta.
+
+**El socket del cliente vive en estado de React, no en una ref.** Con una ref, el efecto que registra los listeners no tiene de qué depender: corre una sola vez, y en ese primer render el socket todavía no existe porque el token se lee de localStorage en otro efecto. Los listeners no llegaban a engancharse y el chat aparecía vacío al recargar — que es como se abre casi siempre.
+
+**El mensaje se pinta antes de que el servidor conteste, y se reconcilia por `clientId`.** El servidor devuelve el mensaje a todos, incluido el autor; sin reconciliar, quien escribe lo vería dos veces. Si el envío falla de verdad, la copia optimista se retira: dejarla puesta le diría al usuario que su mensaje llegó cuando no lo hizo.
 
 **`healthz` no toca la base de datos.** Si el orquestador reinicia el contenedor cada vez que Postgres tiene un hipo, una degradación se convierte en una caída. La comprobación de dependencias irá en un `/readyz` aparte.
 

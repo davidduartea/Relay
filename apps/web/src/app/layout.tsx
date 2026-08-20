@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { SessionProvider } from "@/modules/auth/session-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Saltar al contenido
         </a>
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
