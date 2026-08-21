@@ -148,7 +148,11 @@ e2e/              Playwright: auth, chat entre dos navegadores y accesibilidad
 
 **`nest start --watch` deja un proceso huérfano** si se cierra la terminal en vez de usar Ctrl+C. Ese hijo sigue escuchando en el 4000 y sosteniendo el motor de Prisma, lo que hace fallar el generate por un servidor que uno creía muerto. Se libera con `pnpm free-port`.
 
-## Seguridad de dependencias
+## Seguridad
+
+La postura completa — cabeceras, límites de peticiones, autenticación, autorización y cadena de suministro — está documentada en [`docs/seguridad.md`](./docs/seguridad.md), con el archivo y la línea de cada decisión.
+
+### Dependencias
 
 La política vive en [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) y es deliberada:
 
