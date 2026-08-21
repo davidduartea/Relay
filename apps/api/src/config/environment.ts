@@ -57,11 +57,15 @@ export function loadEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
  * intercepte uno — que viaja en cada petición — puede renovar la sesión
  * indefinidamente, y la vida corta del access token deja de servir de nada.
  */
-export function assertSecretsDiffer(env: Environment): void {
+export function assertSecretsDiffer(env: Environment): Environment {
   if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
     throw new Error(
       "JWT_ACCESS_SECRET y JWT_REFRESH_SECRET no pueden ser iguales: " +
         "un access token serviría como refresh token.",
     );
   }
+
+  // Devuelve el entorno ya validado para que el arranque lo use directamente,
+  // en vez de volver a leer `process.env` con valores por defecto duplicados.
+  return env;
 }

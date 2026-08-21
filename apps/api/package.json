@@ -27,6 +27,7 @@
     "@node-rs/argon2": "^2.1.0",
     "@prisma/client": "^6.19.3",
     "@relay/shared": "workspace:*",
+    "helmet": "^8.3.0",
     "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
