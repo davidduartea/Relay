@@ -35,3 +35,12 @@ strictDepBuilds: true
 # Rechaza versiones publicadas hace menos de 24h. La mayoría de los paquetes
 # comprometidos se retiran del registro en horas; esta ventana los evita.
 minimumReleaseAge: 1440
+
+# Versiones mínimas que cierran avisos de `pnpm audit` en dependencias
+# transitivas que no declaramos y que, por tanto, no podemos subir de otra
+# forma que no sea forzándolas aquí.
+overrides:
+  # GHSA-ggr8-5vv4-36mx (high): agotamiento de pila al fusionar grafos de
+  # objetos recursivos. Llega por @prisma/config, así que actualizar Prisma no
+  # lo arregla: la única vía es forzar la versión parcheada.
+  deepmerge-ts: ^8.0.0
