@@ -1,12 +1,22 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { loginSchema, refreshSchema, registerSchema } from "@relay/shared";
 import type { AuthSession, JwtPayload, LoginInput, RefreshInput, RegisterInput } from "@relay/shared";
 
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
+import { THROTTLE_AUTH } from "../config/throttling";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
 import { Public } from "./public.decorator";
 
+/**
+ * Todo lo que toca credenciales corre bajo el límite estricto.
+ *
+ * Se aplica al controlador entero, no endpoint por endpoint: así un método
+ * nuevo nace protegido. Es el mismo criterio que con `@Public()` — proteger
+ * por defecto y hacer explícita la excepción.
+ */
+@Throttle({ [THROTTLE_AUTH]: {} })
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -58,6 +68,9 @@ export class AuthController {
    * No consulta la base: todo lo que devuelve ya viaja dentro del token. Es la
    * forma barata de que el cliente sepa quién es tras recargar la página.
    */
+  // SkipThrottle sin argumentos sólo salta el throttler llamado "default";
+  // hay que nombrar el estricto para que tampoco cuente ahí.
+  @SkipThrottle({ [THROTTLE_AUTH]: true })
   @Get("me")
   me(@CurrentUser() user: JwtPayload) {
     return { id: user.sub, email: user.email, displayName: user.name };

@@ -24,6 +24,16 @@ const schema = z.object({
   // Formato de la librería `ms`: un número y una unidad. Se valida aquí para
   // que "15 minutos" o un typo como "15mm" no lleguen a la firma, donde
   // producirían un token con una expiración que nadie quiso.
+  /**
+   * Intentos por minuto contra los endpoints de credenciales.
+   *
+   * Configurable porque los E2E registran decenas de usuarios en segundos
+   * desde la misma IP y con el límite real no podrían correr. El valor por
+   * defecto es el de producción: quien no lo toque, queda protegido.
+   */
+  AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(5),
+  DEFAULT_RATE_LIMIT: z.coerce.number().int().positive().default(120),
+
   JWT_ACCESS_TTL: z
     .string()
     .regex(/^\d+[smhd]$/, "Formato de duración inválido; se espera algo como 15m o 7d")

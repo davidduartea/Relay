@@ -130,6 +130,12 @@ e2e/              Playwright: auth, chat entre dos navegadores y accesibilidad
 
 **Se comprueba contra `wcag2a`, `wcag2aa` y `wcag21aa`, sin las reglas "best-practice" de axe.** Son consejos razonables, pero no son norma, y mezclarlos hace que nadie sepa si un fallo del pipeline es legalmente relevante.
 
+**El freno de peticiones corre ANTES que la autenticación.** Los dos guards son globales y el orden de registro es el orden de ejecución: el límite va primero para que un atacante no haga trabajar a la CPU en argon2 en cada uno de sus intentos, que es justo lo que se intenta evitar.
+
+**Dos límites separados, no uno.** En `/auth/login` cada petición es una contraseña probada, así que van 5 por minuto; en el resto, 120. Independientes: quedarse sin intentos de login no deja al usuario sin poder leer las salas. El límite es configurable por entorno porque los E2E registran decenas de usuarios en segundos desde una sola IP — pero el valor por defecto es el de producción, así que quien no lo toque queda protegido.
+
+**`@SkipThrottle()` sin argumentos sólo salta el throttler llamado `default`**, no todos. Hay que nombrar el estricto explícitamente o `/auth/me` — que el cliente llama al cargar cada página — agotaría el cupo de credenciales sin intentar ni una contraseña.
+
 **`healthz` no toca la base de datos.** Si el orquestador reinicia el contenedor cada vez que Postgres tiene un hipo, una degradación se convierte en una caída. La comprobación de dependencias irá en un `/readyz` aparte.
 
 ## Trampas conocidas

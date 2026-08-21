@@ -57,6 +57,12 @@ export default defineConfig({
       timeout: 120_000,
       stdout: "pipe",
       stderr: "pipe",
+
+      // La suite registra decenas de usuarios en segundos desde una sola IP,
+      // así que el límite real de credenciales — 5 por minuto — la ahogaría.
+      // Se sube sólo aquí; que el freno funciona lo comprueba un test de
+      // integración del API, que sí levanta el guard con el límite de verdad.
+      env: { AUTH_RATE_LIMIT: "10000", DEFAULT_RATE_LIMIT: "10000" },
     },
     {
       command: "pnpm --filter @relay/web start",
