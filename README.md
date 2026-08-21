@@ -13,8 +13,8 @@ El objetivo del proyecto no es el chat en sí, sino ejercitar las partes que nor
 | 1b | Auth con JWT y guards | ✅ Listo |
 | 1c | Gateway de WebSocket | ✅ Listo |
 | 1d | UI del chat en Next.js | ✅ Listo |
-| 2 | E2E con dos navegadores | ⏳ Siguiente |
-| 3 | Accesibilidad con axe dentro de los E2E | ⏳ |
+| 2 | E2E con dos navegadores | ✅ Listo |
+| 3 | Accesibilidad con axe dentro de los E2E | ⏳ Siguiente |
 
 ## Stack
 
@@ -56,6 +56,9 @@ pnpm dev                                    # api :4000 · web :3000
 | `pnpm db:seed` | Datos de ejemplo (idempotente) |
 | `pnpm db:studio` | Explorador visual de la base |
 | `pnpm free-port` | Mata el proceso que ocupe el 4000 |
+| `pnpm e2e` | Suite end-to-end con Playwright |
+| `pnpm e2e:ui` | Igual, en modo interactivo |
+| `pnpm e2e:report` | Abre el último reporte HTML |
 
 ## Estructura
 
@@ -78,6 +81,7 @@ apps/
       modules/  auth/ y chat/
 packages/
   shared/         Contrato de eventos, modelos y esquemas Zod
+e2e/              Playwright: auth y chat entre dos navegadores
 ```
 
 ## Decisiones que vale la pena explicar
@@ -115,6 +119,10 @@ packages/
 **El socket del cliente vive en estado de React, no en una ref.** Con una ref, el efecto que registra los listeners no tiene de qué depender: corre una sola vez, y en ese primer render el socket todavía no existe porque el token se lee de localStorage en otro efecto. Los listeners no llegaban a engancharse y el chat aparecía vacío al recargar — que es como se abre casi siempre.
 
 **El mensaje se pinta antes de que el servidor conteste, y se reconcilia por `clientId`.** El servidor devuelve el mensaje a todos, incluido el autor; sin reconciliar, quien escribe lo vería dos veces. Si el envío falla de verdad, la copia optimista se retira: dejarla puesta le diría al usuario que su mensaje llegó cuando no lo hizo.
+
+**Los E2E localizan por rol y nombre accesible, nunca por clase de CSS ni `data-testid`.** Un test que busca el botón como `getByRole("button", { name: "Enviar" })` se rompe si alguien le quita la etiqueta — que es exactamente cuando debe romperse, porque en ese momento el botón dejó de servirle a un lector de pantalla. El `data-testid` habría seguido pasando.
+
+**Cada test genera sus propios usuarios y textos de mensaje.** La sala persiste entre ejecuciones, así que un texto fijo hace que la segunda corrida encuentre el mensaje de la primera y el localizador falle por ambigüedad: un test que sólo pasa la primera vez, que es peor que uno que no pasa nunca.
 
 **`healthz` no toca la base de datos.** Si el orquestador reinicia el contenedor cada vez que Postgres tiene un hipo, una degradación se convierte en una caída. La comprobación de dependencias irá en un `/readyz` aparte.
 

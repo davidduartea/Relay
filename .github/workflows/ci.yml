@@ -58,6 +58,78 @@ jobs:
       - name: Build
         run: pnpm build
 
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Postgres de verdad: los E2E ejercitan la persistencia, y contra una base
+    # falsa no probarían ni el historial ni la idempotencia.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: relay
+          POSTGRES_PASSWORD: relay
+          POSTGRES_DB: relay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U relay -d relay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://relay:relay@localhost:5432/relay
+      JWT_ACCESS_SECRET: ci-access-secret-de-al-menos-32-caracteres
+      JWT_REFRESH_SECRET: ci-refresh-secret-distinto-de-32-caracteres
+      WEB_ORIGIN: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @relay/shared build
+
+      # Sólo Chromium: los tres navegadores triplican el tiempo del pipeline
+      # para cubrir diferencias que este proyecto no ejercita. --with-deps trae
+      # las librerías de sistema que Chromium necesita en el runner.
+      - name: Install Chromium
+        run: pnpm --filter @relay/e2e exec playwright install --with-deps chromium
+
+      - name: Apply migrations
+        run: pnpm --filter @relay/api exec prisma migrate deploy
+
+      - name: Seed
+        run: pnpm db:seed
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run end-to-end tests
+        run: pnpm e2e
+
+      # El reporte se sube siempre, no sólo al fallar: en un fallo trae la
+      # traza y el vídeo, que es la única forma de entender un test rojo en un
+      # runner al que nadie puede asomarse.
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

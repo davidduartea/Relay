@@ -1,6 +1,10 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # Los E2E van fuera de apps/ y de packages/ a propósito: no son una
+  # aplicación ni una librería que alguien consuma, sino una suite que ejercita
+  # a las dos por fuera, sin importar su código.
+  - "e2e"
 
 # ─── Política de cadena de suministro ────────────────────────────────────────
 # Deny-by-default: pnpm no ejecuta scripts de instalación salvo que se marquen
