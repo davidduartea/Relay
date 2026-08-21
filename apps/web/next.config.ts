@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -75,6 +77,20 @@ const nextConfig: NextConfig = {
   // El paquete compartido se publica como TS compilado dentro del workspace;
   // transpilarlo aquí evita tener que construirlo antes de cada `next dev`.
   transpilePackages: ["@relay/shared"],
+
+  /**
+   * Salida autocontenida para el contenedor.
+   *
+   * `standalone` produce una carpeta con el servidor y **sólo** los módulos
+   * que el build detectó como usados, en vez de arrastrar `node_modules`
+   * entero. La diferencia en el tamaño de la imagen es de cientos de megas.
+   *
+   * `outputFileTracingRoot` apunta a la raíz del monorepo porque el rastreo
+   * arranca desde el directorio del proyecto: sin esto, no encontraría
+   * `@relay/shared`, que vive dos niveles más arriba.
+   */
+  output: "standalone",
+  outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
 
   // No anunciar el framework ni su versión: le ahorra al atacante saber contra
   // qué CVEs probar.

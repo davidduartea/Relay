@@ -1,3 +1,15 @@
+###############################################################################
+# Por defecto sólo levanta Postgres, que es lo que el desarrollo necesita:
+#
+#   docker compose up -d          → sólo la base (equivale a `pnpm db:up`)
+#   docker compose --profile full up -d --build
+#                                 → la pila entera en contenedores
+#
+# El perfil existe para que `pnpm db:up` siga haciendo lo de siempre. Sin él,
+# arrancaría también API y web, y el flujo de desarrollo con `pnpm dev` —
+# recarga en caliente incluida — se perdería.
+###############################################################################
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -16,6 +28,48 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: relay-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # `postgres` es el nombre del servicio: dentro de la red de compose, el
+      # DNS lo resuelve. `localhost` apuntaría al propio contenedor de la API.
+      DATABASE_URL: postgresql://relay:relay@postgres:5432/relay?schema=public
+      WEB_ORIGIN: http://localhost:3000
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?falta JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?falta JWT_REFRESH_SECRET}
+    ports:
+      - "4000:4000"
+    depends_on:
+      # No basta con que el contenedor exista: se espera a que Postgres
+      # responda, o la primera migración fallaría contra una base que aún
+      # está arrancando.
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Se pasa como argumento de build y no como variable de entorno porque
+        # las NEXT_PUBLIC_* se incrustan en el bundle al compilar: cambiarlas
+        # exige reconstruir la imagen.
+        NEXT_PUBLIC_API_URL: http://localhost:4000
+    container_name: relay-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
 volumes:
   relay-pgdata:
