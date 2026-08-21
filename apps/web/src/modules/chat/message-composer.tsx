@@ -132,7 +132,7 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
       {tooLong && (
         // role="alert" para que se anuncie en cuanto aparece: un error que
         // sólo se ve no existe para quien usa lector de pantalla.
-        <p id="message-error" role="alert" className="text-sm text-red-600">
+        <p id="message-error" role="alert" className="text-sm text-red-700">
           El mensaje supera los {MESSAGE_MAX_LENGTH} caracteres por{" "}
           {body.length - MESSAGE_MAX_LENGTH}.
         </p>

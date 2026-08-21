@@ -165,7 +165,7 @@ function Field({ name, label, type = "text", autoComplete, error }: FieldProps) 
       />
 
       {error && (
-        <p id={errorId} className="text-sm text-red-600">
+        <p id={errorId} className="text-sm text-red-700">
           {error}
         </p>
       )}

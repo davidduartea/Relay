@@ -43,7 +43,12 @@ export function MessageList({ messages, currentUserId }: MessageListProps) {
       aria-live="polite"
       aria-relevant="additions"
       aria-label="Mensajes"
-      className="flex-1 overflow-y-auto"
+      // tabIndex={0} porque la región tiene scroll: sin foco no se puede
+      // desplazar con las flechas, y quien no usa ratón no llega a los
+      // mensajes antiguos. Lo detectó axe con la regla
+      // scrollable-region-focusable.
+      tabIndex={0}
+      className="focus-visible:outline-accent flex-1 overflow-y-auto focus-visible:outline-2 focus-visible:-outline-offset-2"
     >
       <ol className="flex flex-col gap-3 p-4">
         {messages.map((message) => {

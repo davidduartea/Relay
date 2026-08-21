@@ -14,14 +14,14 @@ El objetivo del proyecto no es el chat en sí, sino ejercitar las partes que nor
 | 1c | Gateway de WebSocket | ✅ Listo |
 | 1d | UI del chat en Next.js | ✅ Listo |
 | 2 | E2E con dos navegadores | ✅ Listo |
-| 3 | Accesibilidad con axe dentro de los E2E | ⏳ Siguiente |
+| 3 | Accesibilidad con axe dentro de los E2E | ✅ Listo |
 
 ## Stack
 
 - **Backend** — NestJS 11, Socket.IO 4, Postgres 17
 - **Frontend** — Next.js 16 (App Router), React 19, Tailwind CSS 4
 - **Compartido** — TypeScript 5.9 estricto, Zod 4
-- **Calidad** — Vitest en ambos apps, ESLint 9 flat config, Prettier
+- **Calidad** — Vitest en ambos apps, Playwright para E2E, axe-core para accesibilidad, ESLint 9 flat config con jsx-a11y, Prettier
 - **Infra** — pnpm workspaces, Docker Compose, GitHub Actions
 
 ## Puesta en marcha
@@ -81,7 +81,7 @@ apps/
       modules/  auth/ y chat/
 packages/
   shared/         Contrato de eventos, modelos y esquemas Zod
-e2e/              Playwright: auth y chat entre dos navegadores
+e2e/              Playwright: auth, chat entre dos navegadores y accesibilidad
 ```
 
 ## Decisiones que vale la pena explicar
@@ -123,6 +123,12 @@ e2e/              Playwright: auth y chat entre dos navegadores
 **Los E2E localizan por rol y nombre accesible, nunca por clase de CSS ni `data-testid`.** Un test que busca el botón como `getByRole("button", { name: "Enviar" })` se rompe si alguien le quita la etiqueta — que es exactamente cuando debe romperse, porque en ese momento el botón dejó de servirle a un lector de pantalla. El `data-testid` habría seguido pasando.
 
 **Cada test genera sus propios usuarios y textos de mensaje.** La sala persiste entre ejecuciones, así que un texto fijo hace que la segunda corrida encuentre el mensaje de la primera y el localizador falle por ambigüedad: un test que sólo pasa la primera vez, que es peor que uno que no pasa nunca.
+
+**La accesibilidad se comprueba en dos capas.** `eslint-plugin-jsx-a11y` atrapa lo que se ve leyendo el JSX — un input sin etiqueta, un `onClick` en un div — y corre en cada guardado. `@axe-core/playwright` atrapa lo que sólo existe con la página montada: contraste calculado, ARIA que apunta a ids inexistentes, regiones con scroll inalcanzables. Hacen falta las dos: axe encontró dos violaciones que el linter no podía ver.
+
+**Cuando axe y jsx-a11y se contradicen, gana axe.** La lista de mensajes tiene scroll y necesita `tabIndex`, o con el teclado no se llega a los mensajes antiguos — criterio 2.1.1 de WCAG. jsx-a11y lo prohíbe por heurística; su lista de roles permitidos no contempla el caso. La regla queda configurada, no desactivada.
+
+**Se comprueba contra `wcag2a`, `wcag2aa` y `wcag21aa`, sin las reglas "best-practice" de axe.** Son consejos razonables, pero no son norma, y mezclarlos hace que nadie sepa si un fallo del pipeline es legalmente relevante.
 
 **`healthz` no toca la base de datos.** Si el orquestador reinicia el contenedor cada vez que Postgres tiene un hipo, una degradación se convierte en una caída. La comprobación de dependencias irá en un `/readyz` aparte.
 

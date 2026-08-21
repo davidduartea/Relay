@@ -1,10 +1,21 @@
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/**", "**/.next/**", "**/coverage/**", "**/node_modules/**"],
+    // Los dos últimos son salida de Playwright: el reporte HTML incluye el
+    // visor de trazas, que son cientos de kilobytes de JavaScript minificado.
+    // Están en .gitignore, pero ESLint no lo lee.
+    ignores: [
+      "**/dist/**",
+      "**/.next/**",
+      "**/coverage/**",
+      "**/node_modules/**",
+      "**/playwright-report/**",
+      "**/test-results/**",
+    ],
   },
 
   js.configs.recommended,
@@ -44,6 +55,44 @@ export default tseslint.config(
         __dirname: "readonly",
         Buffer: "readonly",
       },
+    },
+  },
+
+  {
+    /**
+     * Accesibilidad estática en el frontend.
+     *
+     * Atrapa lo que se ve leyendo el JSX: un input sin etiqueta, un `onClick`
+     * en un div que no responde al teclado, un `alt` que falta. Es la mitad
+     * barata del problema — corre en milisegundos, en cada guardado.
+     *
+     * La otra mitad sólo aparece con la página montada: contraste real,
+     * atributos ARIA que apuntan a ids inexistentes, orden de encabezados. De
+     * eso se encarga axe dentro de los E2E.
+     */
+    files: ["apps/web/**/*.tsx"],
+    plugins: { "jsx-a11y": jsxA11y },
+    rules: {
+      ...jsxA11y.configs.recommended.rules,
+
+      /**
+       * Aquí las dos herramientas se contradicen y hay que elegir.
+       *
+       * axe exige que una región con scroll sea enfocable, porque si no, quien
+       * navega con teclado no puede desplazarla y no llega al contenido de
+       * arriba — es el criterio 2.1.1 de WCAG, y lo detectó de verdad en la
+       * lista de mensajes. jsx-a11y, por su parte, prohíbe `tabIndex` en
+       * elementos no interactivos para evitar que se llene el orden de
+       * tabulación de paradas inútiles.
+       *
+       * Gana axe: su regla viene de la norma, la de jsx-a11y es una heurística
+       * cuya lista de roles permitidos simplemente no contempla este caso. Se
+       * añaden los roles de contenedores que sí pueden necesitar scroll.
+       */
+      "jsx-a11y/no-noninteractive-tabindex": [
+        "error",
+        { tags: [], roles: ["tabpanel", "log", "region"], allowExpressionValues: true },
+      ],
     },
   },
 
