@@ -1,11 +1,12 @@
 "use client";
 
 import type { AuthSession, AuthUser } from "@relay/shared";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { api } from "@/lib/api-client";
 import { clearSession, readSession, writeSession } from "@/lib/session-store";
+import { createTokenRefresher } from "@/lib/token-refresher";
 
 interface SessionValue {
   user: AuthUser | null;
@@ -14,6 +15,12 @@ interface SessionValue {
   ready: boolean;
   signIn: (session: AuthSession) => void;
   signOut: () => Promise<void>;
+  /**
+   * Renueva la sesión y devuelve el nuevo access token, o `null` si el refresh
+   * ya no vale — en cuyo caso la sesión local queda limpia y toca volver a
+   * entrar. Las llamadas concurrentes comparten una sola petición.
+   */
+  refresh: () => Promise<string | null>;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -29,6 +36,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSession(readSession());
     setReady(true);
   }, []);
+
+  // El deduplicador vive en una ref para que sobreviva a los re-render: si se
+  // recreara en cada uno, cada render tendría su propia promesa "en vuelo" y
+  // la deduplicación no serviría de nada.
+  const refreshSession = useRef(createTokenRefresher(api.refresh)).current;
 
   const signIn = useCallback((next: AuthSession) => {
     writeSession(next);
@@ -49,6 +61,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [session]);
 
+  const refresh = useCallback(async (): Promise<string | null> => {
+    // Se lee de localStorage y no del estado porque puede haber otra pestaña
+    // que ya renovó: el estado de este componente estaría desactualizado y
+    // mandaríamos un refresh token que el servidor acaba de rotar.
+    const stored = readSession();
+
+    if (!stored) {
+      return null;
+    }
+
+    const renewed = await refreshSession(stored.tokens.refreshToken);
+
+    if (!renewed) {
+      clearSession();
+      setSession(null);
+
+      return null;
+    }
+
+    writeSession(renewed);
+    setSession(renewed);
+
+    return renewed.tokens.accessToken;
+  }, [refreshSession]);
+
   const value = useMemo<SessionValue>(
     () => ({
       user: session?.user ?? null,
@@ -56,8 +93,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ready,
       signIn,
       signOut,
+      refresh,
     }),
-    [session, ready, signIn, signOut],
+    [session, ready, signIn, signOut, refresh],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

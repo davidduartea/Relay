@@ -2,7 +2,7 @@
 
 import type { Room } from "@relay/shared";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api-client";
 import { useSession } from "@/modules/auth/session-provider";
@@ -21,10 +21,13 @@ const STATUS_COPY = {
 
 export function ChatScreen() {
   const router = useRouter();
-  const { user, accessToken, ready, signOut } = useSession();
+  const { user, accessToken, ready, signOut, refresh } = useSession();
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomId, setRoomId] = useState<string | null>(null);
+
+  // Qué access token ya provocó un intento de renovación.
+  const refreshedFor = useRef<string | null>(null);
 
   const chat = useChat({ accessToken, roomId, currentUser: user });
 
@@ -46,12 +49,38 @@ export function ChatScreen() {
       .catch(() => undefined);
   }, []);
 
-  // Un token caducado no se arregla reintentando: hay que volver a entrar.
+  /**
+   * Token caducado: se intenta renovar antes de rendirse.
+   *
+   * El access token dura 15 minutos y el refresh una semana, así que lo normal
+   * es que la sesión siga viva. Si la renovación funciona, el `accessToken` del
+   * contexto cambia y el efecto de conexión de `useChat` vuelve a correr con el
+   * nuevo — el socket se reconecta solo y el usuario no se entera.
+   *
+   * Sólo cuando el refresh también ha caducado se manda al login.
+   */
   useEffect(() => {
-    if (chat.status === "unauthorized") {
-      void signOut().then(() => router.replace("/login"));
+    if (chat.status !== "unauthorized") {
+      return;
     }
-  }, [chat.status, signOut, router]);
+
+    // Un intento por token, y no más. Sin esta guarda, un token nuevo que el
+    // servidor también rechace volvería a disparar el efecto y el par
+    // renovar-reconectar se convertiría en un bucle caliente contra el API.
+    if (refreshedFor.current === accessToken) {
+      router.replace("/login");
+
+      return;
+    }
+
+    refreshedFor.current = accessToken;
+
+    void refresh().then((renewed) => {
+      if (!renewed) {
+        router.replace("/login");
+      }
+    });
+  }, [chat.status, accessToken, refresh, router]);
 
   if (!ready || !user) {
     return (
