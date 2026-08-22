@@ -1,0 +1,32 @@
+# Todo lo que no debe entrar en el contexto de build.
+#
+# Importa más de lo que parece: el contexto se envía entero al demonio de
+# Docker antes de ejecutar nada, así que un node_modules olvidado convierte
+# un build de segundos en uno de minutos.
+
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+
+# Secretos. Nunca dentro de una imagen: quedan en el historial de capas
+# aunque un RUN posterior los borre.
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.husky
+
+# La suite E2E no se ejecuta dentro de las imágenes de la aplicación.
+e2e/tests
+
+docs
+README.md
+*.md
+!apps/web/AGENTS.md
+!apps/web/CLAUDE.md

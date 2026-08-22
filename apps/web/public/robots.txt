@@ -1,0 +1,8 @@
+# El chat está detrás de autenticación: un rastreador nunca verá nada útil
+# ahí, sólo la redirección al login. Se le indica para no gastar su
+# presupuesto de rastreo en páginas que no puede leer.
+User-agent: *
+Disallow: /chat
+Disallow: /login
+Disallow: /register
+Allow: /

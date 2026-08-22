@@ -15,6 +15,7 @@ El objetivo del proyecto no es el chat en sí, sino ejercitar las partes que nor
 | 1d | UI del chat en Next.js | ✅ Listo |
 | 2 | E2E con dos navegadores | ✅ Listo |
 | 3 | Accesibilidad con axe dentro de los E2E | ✅ Listo |
+| 4 | Renovación de sesión, imágenes de contenedor | ✅ Listo |
 
 ## Stack
 
@@ -59,6 +60,21 @@ pnpm dev                                    # api :4000 · web :3000
 | `pnpm e2e` | Suite end-to-end con Playwright |
 | `pnpm e2e:ui` | Igual, en modo interactivo |
 | `pnpm e2e:report` | Abre el último reporte HTML |
+
+### En contenedores
+
+Para levantar la pila entera — API, web y base — sin Node instalado:
+
+```bash
+cp .env.example .env          # y rellena los dos secretos
+docker compose --profile full up -d --build
+```
+
+Web en :3000, API en :4000. El perfil existe para que `docker compose up -d` a secas siga levantando sólo Postgres, que es lo que el desarrollo con `pnpm dev` necesita.
+
+La imagen de la API aplica sus propias migraciones al arrancar, así que se despliega de una pieza.
+
+Cómo están construidas las imágenes y qué decisiones hay detrás: [`docs/docker.md`](./docs/docker.md).
 
 ## Estructura
 
