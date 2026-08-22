@@ -21,6 +21,7 @@ import type {
 } from "@relay/shared";
 import type { Server, Socket } from "socket.io";
 
+import { loadEnvironment } from "../config/environment";
 import { MessagesService } from "../messages/messages.service";
 import { RoomsService } from "../rooms/rooms.service";
 
@@ -34,9 +35,18 @@ import { RoomsService } from "../rooms/rooms.service";
 type ChatSocket = Socket<ClientToServerEvents, ServerToClientEvents, never, SocketData>;
 type ChatServer = Server<ClientToServerEvents, ServerToClientEvents, never, SocketData>;
 
+/**
+ * El CORS del socket sale del mismo esquema validado que el de HTTP.
+ *
+ * No se puede inyectar `ConfigService` aquí: los argumentos de un decorador se
+ * evalúan al **cargar la clase**, antes de que exista el contenedor de
+ * dependencias. Por eso se llama a `loadEnvironment()` directamente — es la
+ * misma función que valida el arranque, así que un origen mal formado falla
+ * igual, en vez de colarse con el valor por defecto de un `??`.
+ */
 @WebSocketGateway({
   namespace: "/chat",
-  cors: { origin: process.env["WEB_ORIGIN"] ?? "http://localhost:3000", credentials: true },
+  cors: { origin: loadEnvironment().WEB_ORIGIN, credentials: true },
 })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

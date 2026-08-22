@@ -11,7 +11,19 @@ import { z } from "zod";
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
+
+  /**
+   * Origen permitido por CORS, para HTTP y para el socket.
+   *
+   * Tiene valor por defecto para que el desarrollo funcione sin configurar
+   * nada, pero `assertProductionConfig` lo rechaza en producción: desplegar
+   * con este valor dejaría la API aceptando peticiones de `localhost` — es
+   * decir, del navegador de cualquiera — y rechazando las del dominio real.
+   */
   WEB_ORIGIN: z.url().default("http://localhost:3000"),
+
+  /** Lo devuelve /healthz. Útil para saber qué versión respondió. */
+  APP_VERSION: z.string().default("dev"),
 
   DATABASE_URL: z.string().min(1, "Falta DATABASE_URL"),
 
@@ -77,5 +89,46 @@ export function assertSecretsDiffer(env: Environment): Environment {
 
   // Devuelve el entorno ya validado para que el arranque lo use directamente,
   // en vez de volver a leer `process.env` con valores por defecto duplicados.
+  return env;
+}
+
+/**
+ * Valores que son cómodos en desarrollo y peligrosos en producción.
+ *
+ * El patrón que esto ataca es el más traicionero de un despliegue: una
+ * variable que falta y un valor por defecto que la tapa. La aplicación
+ * arranca, los logs no dicen nada, y el fallo aparece en el navegador de
+ * quien la usa — sin ninguna pista de por qué.
+ *
+ * Aquí se prefiere no arrancar. Un contenedor que no levanta se diagnostica
+ * en segundos; uno que levanta mal, en horas.
+ */
+export function assertProductionConfig(env: Environment): Environment {
+  if (env.NODE_ENV !== "production") {
+    return env;
+  }
+
+  const problems: string[] = [];
+
+  if (env.WEB_ORIGIN.includes("localhost") || env.WEB_ORIGIN.includes("127.0.0.1")) {
+    problems.push(
+      `WEB_ORIGIN apunta a "${env.WEB_ORIGIN}". En producción CORS aceptaría ` +
+        "peticiones del navegador de cualquiera y rechazaría las del dominio real.",
+    );
+  }
+
+  if (env.DATABASE_URL.includes("localhost") || env.DATABASE_URL.includes("127.0.0.1")) {
+    problems.push(
+      "DATABASE_URL apunta a localhost. Dentro de un contenedor eso es el propio " +
+        "contenedor, donde no hay base de datos.",
+    );
+  }
+
+  if (problems.length > 0) {
+    throw new Error(
+      `Configuración inválida para producción:\n${problems.map((p) => `  - ${p}`).join("\n")}`,
+    );
+  }
+
   return env;
 }
