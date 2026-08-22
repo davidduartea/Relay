@@ -73,6 +73,29 @@ export function loadEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
 }
 
 /**
+ * Sólo el origen permitido, sin exigir el resto del entorno.
+ *
+ * Existe por el decorador de `ChatGateway`, que necesita el origen al **cargar
+ * la clase**. Usar `loadEnvironment()` allí obligaría a tener base de datos y
+ * secretos configurados para poder siquiera importar el archivo — y eso rompe
+ * cualquier test que lo importe sin levantar un entorno completo.
+ *
+ * Valida con el mismo campo del esquema, así que el default y el rechazo de
+ * una URL mal formada son idénticos. Lo que no se valida aquí — que en
+ * producción no apunte a localhost — lo sigue cubriendo
+ * `assertProductionConfig` al arrancar.
+ */
+export function loadWebOrigin(source: NodeJS.ProcessEnv = process.env): string {
+  const result = schema.shape.WEB_ORIGIN.safeParse(source["WEB_ORIGIN"]);
+
+  if (!result.success) {
+    throw new Error(`WEB_ORIGIN inválido: ${result.error.issues[0]?.message ?? "valor no válido"}`);
+  }
+
+  return result.data;
+}
+
+/**
  * Los dos secretos tienen que ser distintos.
  *
  * Si coinciden, un access token vale como refresh token: cualquiera que

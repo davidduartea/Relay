@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { assertProductionConfig, assertSecretsDiffer, loadEnvironment } from "./environment";
+import {
+  assertProductionConfig,
+  assertSecretsDiffer,
+  loadEnvironment,
+  loadWebOrigin,
+} from "./environment";
 
 const VALID = {
   DATABASE_URL: "postgresql://relay:relay@localhost:5432/relay",
@@ -45,6 +50,25 @@ describe("loadEnvironment", () => {
     expect(() => loadEnvironment({ ...VALID, JWT_ACCESS_SECRET: "corto" })).toThrow(
       /JWT_ACCESS_SECRET/,
     );
+  });
+});
+
+describe("loadWebOrigin", () => {
+  it("no exige el resto del entorno", () => {
+    // Esto es todo el punto: el decorador de ChatGateway lo llama al importar
+    // el archivo, y pedir base de datos y secretos ahí rompería cualquier test
+    // que importe el gateway sin levantar un entorno completo.
+    expect(loadWebOrigin({})).toBe("http://localhost:3000");
+  });
+
+  it("devuelve el origen configurado", () => {
+    expect(loadWebOrigin({ WEB_ORIGIN: "https://relay.example.com" })).toBe(
+      "https://relay.example.com",
+    );
+  });
+
+  it("rechaza un origen mal formado, igual que el esquema completo", () => {
+    expect(() => loadWebOrigin({ WEB_ORIGIN: "relay.example.com" })).toThrow(/WEB_ORIGIN/);
   });
 });
 
