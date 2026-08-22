@@ -74,6 +74,8 @@ Web en :3000, API en :4000. El perfil existe para que `docker compose up -d` a s
 
 La imagen de la API aplica sus propias migraciones al arrancar, así que se despliega de una pieza.
 
+Cómo están construidas las imágenes y qué decisiones hay detrás: [`docs/docker.md`](./docs/docker.md).
+
 ## Estructura
 
 ```
