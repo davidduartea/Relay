@@ -193,15 +193,32 @@ DATABASE_URL: postgresql://relay:relay@postgres:5432/relay
 
 `postgres` es el **nombre del servicio**: compose crea una red donde el DNS lo resuelve. `localhost` apuntaría al propio contenedor de la API, donde no hay base de datos. Es de los errores más comunes al pasar de local a contenedores.
 
-### Variables obligatorias
+### El puerto de la base sólo escucha en local
 
-[`docker-compose.yml:46`](../docker-compose.yml) · 📖 [Interpolación](https://docs.docker.com/reference/compose-file/interpolation/)
+[`docker-compose.yml`](../docker-compose.yml)
 
 ```yaml
-JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?falta JWT_ACCESS_SECRET}
+ports:
+  - "127.0.0.1:5432:5432"
 ```
 
-La sintaxis `${VAR:?mensaje}` hace que compose falle con ese mensaje si la variable no existe, en vez de arrancar con un secreto vacío.
+Sin el prefijo, Docker publica el puerto en **todas** las interfaces de red de la máquina. En una wifi compartida, cualquiera podría conectarse probando la credencial por defecto — que está a la vista en este mismo archivo.
+
+Y está a la vista porque no protege nada: `relay:relay` **crea** una base vacía en el equipo de quien clone el repositorio, no da acceso a ninguna que exista. Cambiarla no aumentaría la seguridad de nadie.
+
+El riesgo no era la credencial, era dónde escuchaba el puerto — y habría existido igual con el repositorio privado. Nada de lo que la usa viene de fuera: la API la alcanza por la red interna de compose, y `pnpm db:studio` corre en la propia máquina.
+
+### Secretos opcionales en la sintaxis, obligatorios en la aplicación
+
+[`docker-compose.yml`](../docker-compose.yml) · 📖 [Interpolación](https://docs.docker.com/reference/compose-file/interpolation/)
+
+```yaml
+JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-}
+```
+
+La forma `${VAR:?mensaje}` hace fallar el arranque si la variable no existe, que parece lo correcto para un secreto — pero **compose interpola todos los servicios aunque sólo se arranque uno**. Con ella, `docker compose up -d` — el que levanta sólo Postgres, y el que usa `pnpm db:up` a diario — fallaba por unos secretos que ese comando no necesita.
+
+El `:-` declara la cadena vacía como valor por defecto y de paso silencia el aviso. Que falten no pasa desapercibido: el esquema de Zod de la API los exige con 32 caracteres mínimo y tumba el contenedor al arrancar, nombrando la variable que falta.
 
 ### Esperar a que la base esté sana
 
