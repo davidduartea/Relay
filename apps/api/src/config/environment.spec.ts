@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { assertSecretsDiffer, loadEnvironment } from "./environment";
+import {
+  assertProductionConfig,
+  assertSecretsDiffer,
+  loadEnvironment,
+  loadWebOrigin,
+} from "./environment";
 
 const VALID = {
   DATABASE_URL: "postgresql://relay:relay@localhost:5432/relay",
   JWT_ACCESS_SECRET: "a".repeat(32),
   JWT_REFRESH_SECRET: "b".repeat(32),
+};
+
+/** Configuración que sí valdría desplegada. */
+const PRODUCTION = {
+  ...VALID,
+  NODE_ENV: "production",
+  WEB_ORIGIN: "https://relay.example.com",
+  DATABASE_URL: "postgresql://relay:secreto@db.interno:5432/relay",
 };
 
 describe("loadEnvironment", () => {
@@ -40,6 +53,25 @@ describe("loadEnvironment", () => {
   });
 });
 
+describe("loadWebOrigin", () => {
+  it("no exige el resto del entorno", () => {
+    // Esto es todo el punto: el decorador de ChatGateway lo llama al importar
+    // el archivo, y pedir base de datos y secretos ahí rompería cualquier test
+    // que importe el gateway sin levantar un entorno completo.
+    expect(loadWebOrigin({})).toBe("http://localhost:3000");
+  });
+
+  it("devuelve el origen configurado", () => {
+    expect(loadWebOrigin({ WEB_ORIGIN: "https://relay.example.com" })).toBe(
+      "https://relay.example.com",
+    );
+  });
+
+  it("rechaza un origen mal formado, igual que el esquema completo", () => {
+    expect(() => loadWebOrigin({ WEB_ORIGIN: "relay.example.com" })).toThrow(/WEB_ORIGIN/);
+  });
+});
+
 describe("assertSecretsDiffer", () => {
   it("pasa cuando los secretos son distintos", () => {
     expect(() => assertSecretsDiffer(loadEnvironment(VALID))).not.toThrow();
@@ -49,5 +81,61 @@ describe("assertSecretsDiffer", () => {
     const env = loadEnvironment({ ...VALID, JWT_REFRESH_SECRET: VALID.JWT_ACCESS_SECRET });
 
     expect(() => assertSecretsDiffer(env)).toThrow(/no pueden ser iguales/);
+  });
+});
+
+describe("assertProductionConfig", () => {
+  it("no exige nada fuera de producción", () => {
+    // En desarrollo los valores por defecto son justo lo que se quiere: que
+    // `pnpm dev` funcione recién clonado el repositorio.
+    expect(() => assertProductionConfig(loadEnvironment(VALID))).not.toThrow();
+  });
+
+  it("acepta una configuración de producción correcta", () => {
+    expect(() => assertProductionConfig(loadEnvironment(PRODUCTION))).not.toThrow();
+  });
+
+  it("rechaza WEB_ORIGIN apuntando a localhost en producción", () => {
+    // Desplegar así deja CORS aceptando peticiones del navegador de
+    // cualquiera y rechazando las del dominio real.
+    const env = loadEnvironment({ ...PRODUCTION, WEB_ORIGIN: "http://localhost:3000" });
+
+    expect(() => assertProductionConfig(env)).toThrow(/WEB_ORIGIN/);
+  });
+
+  it("rechaza también 127.0.0.1, no sólo la palabra localhost", () => {
+    const env = loadEnvironment({ ...PRODUCTION, WEB_ORIGIN: "http://127.0.0.1:3000" });
+
+    expect(() => assertProductionConfig(env)).toThrow(/WEB_ORIGIN/);
+  });
+
+  it("rechaza DATABASE_URL apuntando a localhost en producción", () => {
+    // Dentro de un contenedor, localhost es el propio contenedor.
+    const env = loadEnvironment({ ...PRODUCTION, DATABASE_URL: VALID.DATABASE_URL });
+
+    expect(() => assertProductionConfig(env)).toThrow(/DATABASE_URL/);
+  });
+
+  it("nombra todos los problemas a la vez, no sólo el primero", () => {
+    // Arreglar uno, volver a desplegar y descubrir el siguiente es la forma
+    // más lenta posible de configurar un entorno.
+    const env = loadEnvironment({
+      ...PRODUCTION,
+      WEB_ORIGIN: "http://localhost:3000",
+      DATABASE_URL: VALID.DATABASE_URL,
+    });
+
+    const message = String(
+      (() => {
+        try {
+          assertProductionConfig(env);
+        } catch (error) {
+          return (error as Error).message;
+        }
+      })(),
+    );
+
+    expect(message).toMatch(/WEB_ORIGIN/);
+    expect(message).toMatch(/DATABASE_URL/);
   });
 });

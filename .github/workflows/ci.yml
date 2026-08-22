@@ -55,8 +55,17 @@ jobs:
       - name: Test with coverage
         run: pnpm test:coverage
 
+      # `next build` compila en modo producción, y ahí NEXT_PUBLIC_API_URL es
+      # obligatoria a propósito: se incrusta en el bundle, así que un build sin
+      # ella produciría una aplicación que apunta a localhost sin avisar.
+      #
+      # El valor es un marcador, no un destino: `.invalid` es un TLD reservado
+      # (RFC 2606) que nunca resuelve. Este job comprueba que el proyecto
+      # compila; el valor real lo pone la plataforma de despliegue.
       - name: Build
         run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.relay.invalid
 
   e2e:
     name: End-to-end

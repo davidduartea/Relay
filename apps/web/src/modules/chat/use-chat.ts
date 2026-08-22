@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-import { API_URL } from "@/lib/api-client";
+import { API_URL } from "@/lib/api-url";
 
 /**
  * El socket del cliente, tipado con el mismo contrato que el gateway.

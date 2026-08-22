@@ -5,12 +5,12 @@ import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 
 import { AppModule } from "./app.module";
-import { assertSecretsDiffer, loadEnvironment } from "./config/environment";
+import { assertProductionConfig, assertSecretsDiffer, loadEnvironment } from "./config/environment";
 
 async function bootstrap(): Promise<void> {
   // Se valida antes de construir la app para que un secreto mal puesto muera
   // aquí, con un mensaje claro, y no en la primera petición que firme un token.
-  const env = assertSecretsDiffer(loadEnvironment());
+  const env = assertProductionConfig(assertSecretsDiffer(loadEnvironment()));
 
   const app = await NestFactory.create(AppModule);
 

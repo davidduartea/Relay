@@ -1,4 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 import { Public } from "../auth/public.decorator";
 
@@ -19,12 +20,14 @@ export interface HealthResponse {
 @Public()
 @Controller("healthz")
 export class HealthController {
+  constructor(private readonly config: ConfigService) {}
+
   @Get()
   check(): HealthResponse {
     return {
       status: "ok",
       uptimeSeconds: Math.round(process.uptime()),
-      version: process.env["APP_VERSION"] ?? "dev",
+      version: this.config.getOrThrow<string>("APP_VERSION"),
     };
   }
 }

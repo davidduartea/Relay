@@ -177,6 +177,16 @@ Que el freno funciona de verdad lo comprueba [`auth/throttling.spec.ts`](../apps
 
 ---
 
+## Configuración
+
+El patrón más traicionero de un despliegue es una variable que falta y un valor por defecto que la tapa: la aplicación arranca, los logs no dicen nada, y el fallo aparece en el navegador de quien la usa. Aquí se prefiere no arrancar — un contenedor que no levanta se diagnostica en segundos; uno que levanta mal, en horas.
+
+**Toda lectura de `process.env` pasa por el esquema de Zod** de [`config/environment.ts`](../apps/api/src/config/environment.ts). Incluido el CORS del gateway de WebSocket, que antes lo leía en crudo con un `??` hacia localhost — y como está en un decorador, evaluado antes de que exista el contenedor de dependencias, llama a `loadEnvironment()` directamente.
+
+**`assertProductionConfig` rechaza en producción lo que es cómodo en desarrollo**: un `WEB_ORIGIN` o un `DATABASE_URL` apuntando a localhost. Nombra todos los problemas a la vez, no sólo el primero — arreglar uno, redesplegar y descubrir el siguiente es la forma más lenta de configurar un entorno.
+
+**En la web, `NEXT_PUBLIC_API_URL` rompe el build si falta en producción** ([`lib/api-url.ts`](../apps/web/src/lib/api-url.ts)). Se incrusta al compilar, así que un valor por defecto hacia localhost produce una aplicación que compila sin un aviso y luego no conecta con nada, sin log que lo explique y sin arreglo salvo reconstruir.
+
 ## Autenticación
 
 ### Contraseñas

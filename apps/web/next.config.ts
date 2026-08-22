@@ -2,8 +2,9 @@ import path from "node:path";
 
 import type { NextConfig } from "next";
 
+import { API_URL } from "./src/lib/api-url";
+
 const isProduction = process.env.NODE_ENV === "production";
-const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:4000";
 
 /**
  * Content Security Policy.
