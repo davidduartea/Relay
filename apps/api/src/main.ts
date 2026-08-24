@@ -50,9 +50,19 @@ async function bootstrap(): Promise<void> {
   // comodín permitiría a cualquier web hacer peticiones en nombre del usuario.
   app.enableCors({ origin: env.WEB_ORIGIN, credentials: true });
 
-  await app.listen(env.PORT);
+  /**
+   * `0.0.0.0` explícito, y no el valor por defecto.
+   *
+   * Sin el segundo argumento, Node escucha en la interfaz que le parezca — a
+   * menudo sólo la de loopback. Dentro de un contenedor eso significa que el
+   * proceso responde a sí mismo y a nadie más: la comprobación de salud pasa,
+   * los logs dicen que arrancó, y todas las peticiones de fuera se pierden.
+   *
+   * Es un fallo caro porque no se parece a un fallo. Una línea lo descarta.
+   */
+  await app.listen(env.PORT, "0.0.0.0");
 
-  Logger.log(`API escuchando en http://localhost:${env.PORT}`, "Bootstrap");
+  Logger.log(`API escuchando en el puerto ${env.PORT}`, "Bootstrap");
 }
 
 void bootstrap();
