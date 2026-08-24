@@ -48,11 +48,23 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
       return;
     }
 
-    const lineHeight = parseFloat(getComputedStyle(field).lineHeight) || 22;
-    const padding = field.offsetHeight - field.clientHeight + 22;
+    const style = getComputedStyle(field);
+    const lineHeight = parseFloat(style.lineHeight);
 
+    // Todo lo que ocupa el campo además del texto. Antes salía de
+    // `offsetHeight - clientHeight`, que da los **bordes** y no el relleno, más
+    // un `+ 22` sin explicación: el tope de cinco líneas acertaba por
+    // casualidad y dejaba de hacerlo en cuanto cambiara el `py` del campo.
+    const chrome =
+      parseFloat(style.paddingTop) +
+      parseFloat(style.paddingBottom) +
+      parseFloat(style.borderTopWidth) +
+      parseFloat(style.borderBottomWidth);
+
+    // Vuelve a `auto` antes de medir: `scrollHeight` nunca baja de la altura
+    // fijada, así que sin este paso el campo crece y ya no encoge al borrar.
     field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, lineHeight * MAX_LINES + padding)}px`;
+    field.style.height = `${Math.min(field.scrollHeight, lineHeight * MAX_LINES + chrome)}px`;
   }, [body]);
 
   useEffect(() => {

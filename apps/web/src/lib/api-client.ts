@@ -2,6 +2,12 @@ import type { AuthSession, LoginInput, RegisterInput, Room } from "@relay/shared
 
 import { API_URL } from "./api-url";
 
+/**
+ * Cuánto esperar cuando el servidor corta por exceso de intentos y no dice
+ * cuánto. Coincide con la ventana del throttler del API, que es de un minuto.
+ */
+const FALLBACK_RETRY_SECONDS = 60;
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -64,7 +70,7 @@ function retryAfterSeconds(response: Response): number | undefined {
 
   const seconds = Number(response.headers.get("Retry-After"));
 
-  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 60;
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : FALLBACK_RETRY_SECONDS;
 }
 
 export const api = {
