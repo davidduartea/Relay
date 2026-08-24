@@ -95,9 +95,24 @@ describe("MessageComposer", () => {
 
     const alert = screen.getByRole("alert");
 
-    expect(alert).toHaveTextContent(/supera los/i);
+    expect(alert).toHaveTextContent(/no puede pasar de 2000 caracteres/i);
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input).toHaveAttribute("aria-describedby", alert.id);
+  });
+
+  it("enseña el contador sólo cerca del límite", async () => {
+    // Un contador permanente en un chat es ruido: la mayoría de los mensajes
+    // no se acercan ni de lejos a los 2000 caracteres.
+    const { user, input } = setup();
+
+    await user.click(input);
+    await user.paste("x".repeat(100));
+
+    expect(screen.queryByText(/\/2000/)).not.toBeInTheDocument();
+
+    await user.paste("x".repeat(MESSAGE_MAX_LENGTH));
+
+    expect(screen.getByText(/\/2000/)).toBeInTheDocument();
   });
 
   it("se desactiva mientras no hay conexión", () => {

@@ -1,11 +1,64 @@
 @import "tailwindcss";
 
+/**
+ * Tokens del sistema visual.
+ *
+ * Salen del pase de diseño «el sello». Cada color lleva su ratio de contraste
+ * contra el fondo sobre el que se usa de verdad, porque el número es la razón
+ * de que el valor sea ese y no uno más bonito.
+ */
 @theme {
-  --color-ground: #f7f8fa;
+  /* Superficies. El fondo no es blanco puro: a 1px los filetes sobre #FFF
+     vibran, y esta pantalla se mira horas seguidas. */
+  --color-paper: #f7f8fa;
   --color-surface: #ffffff;
-  --color-ink: #14171f;
-  --color-ink-muted: #59606e;
-  --color-accent: #0013a3;
+
+  /* Texto. */
+  --color-ink: #0a1a33; /* 16.4:1 sobre papel */
+  --color-ink-muted: #4c5a70; /* 6.6:1 sobre papel · 7.0:1 sobre superficie */
+
+  /* Azules. El principal es superficie (botones, burbuja propia); el activo
+     es línea fina (anillo de foco, enlaces) y por eso es más claro. */
+  --color-blue: #12306b; /* blanco encima: 12.6:1 */
+  --color-blue-active: #2b57c4; /* 6.1:1 sobre papel */
+  --color-on-blue-muted: #c7d2e8; /* 7.4:1 sobre el azul principal */
+
+  --color-error: #b02318; /* 6.4:1 sobre papel · 6.8:1 sobre superficie */
+
+  /* Dos grises distintos a propósito: uno divide zonas y no lleva ninguna
+     información, el otro es el borde de un control y sí la lleva — por eso
+     tiene que llegar a 3:1. */
+  --color-rule: #dce0e7; /* 1.5:1 — sólo decorativo */
+  --color-border: #7e8899; /* 3.4:1 — bordes de control */
+
+  /* Radio: 0 en zonas y filetes, 2px en controles y burbujas. El círculo se
+     reserva al punto de presencia. */
+  --radius-control: 2px;
+}
+
+/**
+ * Foco de teclado, en un solo sitio.
+ *
+ * Definirlo por componente garantiza que el siguiente se olvide. El anillo
+ * llega a 6.1:1 sobre papel; sobre el azul principal se invierte a blanco,
+ * porque azul sobre azul no se ve.
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-blue-active);
+    outline-offset: 2px;
+  }
+
+  .bg-blue :focus-visible,
+  .bg-blue:focus-visible {
+    outline-color: var(--color-surface);
+  }
+
+  /* Las horas y los contadores no deben bailar al cambiar de cifra. */
+  time,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* Respeta a quien pidió menos movimiento. Va aquí y no por componente para

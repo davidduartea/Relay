@@ -7,6 +7,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly fields: { field: string; message: string }[] = [],
+    /** Segundos que hay que esperar. Sólo viene con un 429. */
+    readonly retryAfter?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -37,10 +39,32 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       response.status,
       body.message ?? "Algo salió mal. Inténtalo de nuevo.",
       body.errors ?? [],
+      // Al pasarse del límite de intentos, el servidor dice en la cabecera
+      // cuántos segundos faltan. Sin ese dato la única salida sería probar y
+      // volver a fallar.
+      retryAfterSeconds(response),
     );
   }
 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+}
+
+/**
+ * Los segundos de espera que anuncia un 429.
+ *
+ * `Retry-After` es la cabecera estándar (RFC 9110 §10.2.3) y la que pone
+ * `@nestjs/throttler` al cortar. Admite también una fecha, pero el throttler
+ * siempre manda segundos, así que un valor no numérico se descarta en vez de
+ * adivinar.
+ */
+function retryAfterSeconds(response: Response): number | undefined {
+  if (response.status !== 429) {
+    return undefined;
+  }
+
+  const seconds = Number(response.headers.get("Retry-After"));
+
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 60;
 }
 
 export const api = {

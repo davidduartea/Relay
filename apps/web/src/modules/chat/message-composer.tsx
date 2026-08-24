@@ -1,7 +1,7 @@
 "use client";
 
 import { MESSAGE_MAX_LENGTH } from "@relay/shared";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 
 interface MessageComposerProps {
@@ -12,6 +12,12 @@ interface MessageComposerProps {
 
 /** Cuánto se espera sin escribir antes de avisar de que se dejó de escribir. */
 const TYPING_IDLE_MS = 1500;
+
+/** A partir de aquí aparece el contador. Antes sólo sería ruido. */
+const COUNTER_FROM = MESSAGE_MAX_LENGTH - 200;
+
+/** Crece hasta cinco líneas y a partir de ahí hace scroll. */
+const MAX_LINES = 5;
 
 export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerProps) {
   const [body, setBody] = useState("");
@@ -24,6 +30,30 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
   const trimmed = body.trim();
   const tooLong = body.length > MESSAGE_MAX_LENGTH;
   const canSend = trimmed.length > 0 && !tooLong && !disabled && !sending;
+
+  /**
+   * El campo crece con el texto.
+   *
+   * Hay que devolverlo a `auto` antes de medir: `scrollHeight` nunca baja de la
+   * altura fijada, así que sin ese paso el campo crece y ya no vuelve a
+   * encoger al borrar.
+   *
+   * `useLayoutEffect` y no `useEffect` porque el ajuste ocurre antes de pintar:
+   * con el segundo, se vería un fotograma con la altura vieja.
+   */
+  useLayoutEffect(() => {
+    const field = inputRef.current;
+
+    if (!field) {
+      return;
+    }
+
+    const lineHeight = parseFloat(getComputedStyle(field).lineHeight) || 22;
+    const padding = field.offsetHeight - field.clientHeight + 22;
+
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, lineHeight * MAX_LINES + padding)}px`;
+  }, [body]);
 
   useEffect(() => {
     return () => {
@@ -95,12 +125,15 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
   }
 
   return (
-    <form onSubmit={submit} className="border-ink/10 flex flex-col gap-2 border-t p-4">
+    <form
+      onSubmit={submit}
+      className="border-rule flex flex-none flex-col gap-2 border-t px-3 py-2.5 sm:px-8 sm:py-4"
+    >
       <label htmlFor="message" className="sr-only">
         Escribe un mensaje
       </label>
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2.5">
         <textarea
           id="message"
           ref={inputRef}
@@ -114,28 +147,56 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
           }}
           onBlur={stopTyping}
           onKeyDown={onKeyDown}
-          placeholder={disabled ? "Conectando…" : "Escribe un mensaje"}
+          placeholder={disabled ? "Conectando… podrás escribir enseguida" : "Escribe un mensaje…"}
           aria-describedby={tooLong ? "message-error" : undefined}
           aria-invalid={tooLong || undefined}
-          className="border-ink/15 bg-surface text-ink focus:border-accent focus:ring-accent max-h-40 min-h-11 flex-1 resize-y rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none disabled:opacity-60"
+          className={`rounded-control min-h-11 flex-1 resize-none px-3 py-2.5 text-sm leading-[22px] outline-none disabled:opacity-60 sm:min-h-15 ${
+            tooLong ? "border-error border-2" : "border-border border"
+          }`}
         />
 
         <button
           type="submit"
           disabled={!canSend}
-          className="bg-accent focus-visible:outline-accent h-11 rounded-md px-4 text-sm font-semibold text-white transition-opacity disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2"
+          aria-busy={sending || undefined}
+          className={`rounded-control flex size-11 flex-none items-center justify-center text-sm font-medium sm:h-11 sm:w-auto sm:px-4.5 ${
+            sending
+              ? "border-border text-ink-muted border border-dashed"
+              : "bg-blue text-white disabled:opacity-40"
+          }`}
         >
-          {sending ? "Enviando…" : "Enviar"}
+          {/* El glifo es la versión móvil del botón; en escritorio cabe la
+              palabra. Sólo uno de los dos se muestra, así que el nombre
+              accesible se fija aparte para que no dependa del ancho. */}
+          <span aria-hidden="true" className="sm:hidden">
+            {sending ? "◌" : "↑"}
+          </span>
+          <span aria-hidden="true" className="hidden sm:inline">
+            {sending ? "◌ Enviando" : "Enviar"}
+          </span>
+          <span className="sr-only">{sending ? "Enviando" : "Enviar"}</span>
         </button>
       </div>
 
-      {tooLong && (
-        // role="alert" para que se anuncie en cuanto aparece: un error que
-        // sólo se ve no existe para quien usa lector de pantalla.
-        <p id="message-error" role="alert" className="text-sm text-red-700">
-          El mensaje supera los {MESSAGE_MAX_LENGTH} caracteres por{" "}
-          {body.length - MESSAGE_MAX_LENGTH}.
-        </p>
+      {(tooLong || body.length > COUNTER_FROM) && (
+        <div className="flex items-baseline justify-between gap-3">
+          {tooLong ? (
+            // role="alert" para que se anuncie en cuanto aparece: un error que
+            // sólo se ve no existe para quien usa lector de pantalla.
+            <p id="message-error" role="alert" className="text-error text-xs font-medium">
+              <span aria-hidden="true">⚠</span> El mensaje no puede pasar de {MESSAGE_MAX_LENGTH}{" "}
+              caracteres.
+            </p>
+          ) : (
+            <span />
+          )}
+          <span
+            data-tabular
+            className={`text-xs font-medium ${tooLong ? "text-error" : "text-ink-muted"}`}
+          >
+            {body.length}/{MESSAGE_MAX_LENGTH}
+          </span>
+        </div>
       )}
     </form>
   );

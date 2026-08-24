@@ -76,7 +76,9 @@ test.describe("accesibilidad", () => {
     await page.getByLabel("Contraseña").fill("corta");
     await page.getByRole("button", { name: "Crear cuenta" }).click();
 
-    await expect(page.getByText(/mínimo 12 caracteres/i)).toBeVisible();
+    // Exacto a propósito: la pista bajo el campo dice lo mismo con punto
+    // final, así que sin `exact` el localizador encontraría los dos.
+    await expect(page.getByText("Mínimo 12 caracteres", { exact: true })).toBeVisible();
     await expectNoViolations(page);
   });
 
