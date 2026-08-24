@@ -1,4 +1,5 @@
 import type { PresenceUser } from "@relay/shared";
+import { useId } from "react";
 
 import { Seal } from "@/modules/ui/seal";
 
@@ -24,11 +25,24 @@ export function PresenceList({
   typingIds = [],
   bare = false,
 }: PresenceListProps) {
+  /**
+   * El identificador se genera por instancia.
+   *
+   * Con un `id` fijo había dos elementos iguales en el DOM: la columna lateral
+   * se oculta con `hidden lg:block`, que es `display:none` — sigue montada — y
+   * la hoja móvil añade una segunda. `aria-labelledby` resuelve siempre al
+   * primero del documento, así que la lista que se estaba usando quedaba
+   * nombrada por un encabezado invisible.
+   *
+   * `useId` da un valor estable y único que coincide entre servidor y cliente.
+   */
+  const headingId = useId();
+
   return (
-    <section aria-labelledby="presence-heading" className="flex min-h-0 flex-col">
+    <section aria-labelledby={headingId} className="flex min-h-0 flex-col">
       <header className={bare ? "" : "flex flex-col gap-1 px-5 pt-5 pb-2.5"}>
         <h2
-          id="presence-heading"
+          id={headingId}
           className={
             bare
               ? "sr-only"

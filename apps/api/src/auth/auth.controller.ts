@@ -1,7 +1,13 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { loginSchema, refreshSchema, registerSchema } from "@relay/shared";
-import type { AuthSession, JwtPayload, LoginInput, RefreshInput, RegisterInput } from "@relay/shared";
+import type {
+  AuthSession,
+  JwtPayload,
+  LoginInput,
+  RefreshInput,
+  RegisterInput,
+} from "@relay/shared";
 
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { THROTTLE_AUTH } from "../config/throttling";
@@ -24,7 +30,9 @@ export class AuthController {
   /** POST /auth/register — abierto, si no nadie podría crear la primera cuenta. */
   @Public()
   @Post("register")
-  register(@Body(new ZodValidationPipe(registerSchema)) input: RegisterInput): Promise<AuthSession> {
+  register(
+    @Body(new ZodValidationPipe(registerSchema)) input: RegisterInput,
+  ): Promise<AuthSession> {
     return this.auth.register(input);
   }
 
@@ -51,7 +59,9 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post("refresh")
-  refresh(@Body(new ZodValidationPipe(refreshSchema)) input: RefreshInput): Promise<AuthSession> {
+  refresh(
+    @Body(new ZodValidationPipe(refreshSchema)) input: RefreshInput,
+  ): Promise<AuthSession> {
     return this.auth.refresh(input.refreshToken);
   }
 

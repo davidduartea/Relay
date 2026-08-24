@@ -6,16 +6,16 @@ El objetivo del proyecto no es el chat en sí, sino ejercitar las partes que nor
 
 ## Estado
 
-| Fase | Qué incluye | Estado |
-| --- | --- | --- |
-| 0 | Base del monorepo, contrato compartido, CI | ✅ Listo |
-| 1a | Persistencia con Prisma y Postgres | ✅ Listo |
-| 1b | Auth con JWT y guards | ✅ Listo |
-| 1c | Gateway de WebSocket | ✅ Listo |
-| 1d | UI del chat en Next.js | ✅ Listo |
-| 2 | E2E con dos navegadores | ✅ Listo |
-| 3 | Accesibilidad con axe dentro de los E2E | ✅ Listo |
-| 4 | Renovación de sesión, imágenes de contenedor | ✅ Listo |
+| Fase | Qué incluye                                  | Estado   |
+| ---- | -------------------------------------------- | -------- |
+| 0    | Base del monorepo, contrato compartido, CI   | ✅ Listo |
+| 1a   | Persistencia con Prisma y Postgres           | ✅ Listo |
+| 1b   | Auth con JWT y guards                        | ✅ Listo |
+| 1c   | Gateway de WebSocket                         | ✅ Listo |
+| 1d   | UI del chat en Next.js                       | ✅ Listo |
+| 2    | E2E con dos navegadores                      | ✅ Listo |
+| 3    | Accesibilidad con axe dentro de los E2E      | ✅ Listo |
+| 4    | Renovación de sesión, imágenes de contenedor | ✅ Listo |
 
 ## Stack
 
@@ -43,23 +43,23 @@ pnpm db:seed                                # dos salas de ejemplo
 pnpm dev                                    # api :4000 · web :3000
 ```
 
-| Comando | Qué hace |
-| --- | --- |
-| `pnpm dev` | Levanta API y web en paralelo |
-| `pnpm lint` | ESLint sobre todo el monorepo |
-| `pnpm typecheck` | `tsc --noEmit` en los tres paquetes |
-| `pnpm test` | Vitest en API y web |
-| `pnpm test:coverage` | Igual, con umbrales que rompen el build |
-| `pnpm build` | Compila shared, luego API y web |
-| `pnpm audit` | Avisos de dependencias, nivel moderate en adelante |
-| `pnpm db:up` / `db:down` | Postgres en Docker |
-| `pnpm db:migrate` | Aplica migraciones pendientes |
-| `pnpm db:seed` | Datos de ejemplo (idempotente) |
-| `pnpm db:studio` | Explorador visual de la base |
-| `pnpm free-port` | Mata el proceso que ocupe el 4000 |
-| `pnpm e2e` | Suite end-to-end con Playwright |
-| `pnpm e2e:ui` | Igual, en modo interactivo |
-| `pnpm e2e:report` | Abre el último reporte HTML |
+| Comando                  | Qué hace                                           |
+| ------------------------ | -------------------------------------------------- |
+| `pnpm dev`               | Levanta API y web en paralelo                      |
+| `pnpm lint`              | ESLint sobre todo el monorepo                      |
+| `pnpm typecheck`         | `tsc --noEmit` en los tres paquetes                |
+| `pnpm test`              | Vitest en API y web                                |
+| `pnpm test:coverage`     | Igual, con umbrales que rompen el build            |
+| `pnpm build`             | Compila shared, luego API y web                    |
+| `pnpm audit`             | Avisos de dependencias, nivel moderate en adelante |
+| `pnpm db:up` / `db:down` | Postgres en Docker                                 |
+| `pnpm db:migrate`        | Aplica migraciones pendientes                      |
+| `pnpm db:seed`           | Datos de ejemplo (idempotente)                     |
+| `pnpm db:studio`         | Explorador visual de la base                       |
+| `pnpm free-port`         | Mata el proceso que ocupe el 4000                  |
+| `pnpm e2e`               | Suite end-to-end con Playwright                    |
+| `pnpm e2e:ui`            | Igual, en modo interactivo                         |
+| `pnpm e2e:report`        | Abre el último reporte HTML                        |
 
 ### En contenedores
 
@@ -116,7 +116,7 @@ e2e/              Playwright: auth, chat entre dos navegadores y accesibilidad
 
 **`RoomsService.create` intenta y captura, en vez de consultar y luego crear.** Un `findUnique` previo deja una ventana entre la comprobación y el insert donde otra petición puede colarse con el mismo slug. La restricción única de la base no tiene esa ventana; el código traduce el error `P2002` a un 409.
 
-**El guard de JWT es global y las rutas abiertas se marcan con `@Public()`.** Una lista blanca de rutas *privadas* se olvida en cuanto alguien añade un endpoint; una de rutas *públicas* falla hacia el lado seguro.
+**El guard de JWT es global y las rutas abiertas se marcan con `@Public()`.** Una lista blanca de rutas _privadas_ se olvida en cuanto alguien añade un endpoint; una de rutas _públicas_ falla hacia el lado seguro.
 
 **Access y refresh se firman con secretos distintos, y el arranque lo comprueba.** Si coincidieran, un access token interceptado — que viaja en cada petición — serviría para renovar la sesión indefinidamente, y su vida corta dejaría de significar nada.
 
@@ -156,7 +156,7 @@ e2e/              Playwright: auth, chat entre dos navegadores y accesibilidad
 
 ## Trampas conocidas
 
-**`prisma.config.ts` desactiva la carga automática de `.env`.** En cuanto ese archivo existe, Prisma avisa con *"Prisma config detected, skipping environment variable loading"* y `DATABASE_URL` llega vacía — el esquema ni siquiera valida. El propio config lo carga con `process.loadEnvFile`, nativo desde Node 20.12.
+**`prisma.config.ts` desactiva la carga automática de `.env`.** En cuanto ese archivo existe, Prisma avisa con _"Prisma config detected, skipping environment variable loading"_ y `DATABASE_URL` llega vacía — el esquema ni siquiera valida. El propio config lo carga con `process.loadEnvFile`, nativo desde Node 20.12.
 
 **El cliente generado vive dentro del store de pnpm**, así que cualquier `pnpm install` o re-link lo borra y `tsc` empieza a decir que `@prisma/client` no exporta `PrismaClient`. Todos los comandos pasan por [`scripts/ensure-prisma-client.mjs`](apps/api/scripts/ensure-prisma-client.mjs), que regenera si el cliente falta **o** si `schema.prisma` cambió desde la última vez — comparando un hash guardado. Si nada cambió, no toca nada.
 
@@ -173,7 +173,7 @@ La postura completa — cabeceras, límites de peticiones, autenticación, autor
 La política vive en [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) y es deliberada:
 
 - **Deny-by-default en scripts de instalación.** Un paquete comprometido normalmente entrega su payload desde un `postinstall`; negarlos por defecto cierra esa vía.
-- **`strictDepBuilds`** hace que la instalación *falle*, no que avise, cuando aparece una dependencia con scripts sin revisar.
+- **`strictDepBuilds`** hace que la instalación _falle_, no que avise, cuando aparece una dependencia con scripts sin revisar.
 - **`minimumReleaseAge: 1440`** rechaza versiones publicadas hace menos de 24 horas. La mayoría de los paquetes comprometidos se retiran del registro en horas.
 - **`--frozen-lockfile` en CI**, para que el pipeline falle si el lockfile no corresponde al `package.json` en vez de resolver versiones nuevas en silencio.
 

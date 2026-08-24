@@ -75,7 +75,10 @@ describe("MessageList", () => {
     // El mensaje optimista y el confirmado comparten clientId pero no id. Si
     // la clave fuera el id, React desmontaría y volvería a montar el nodo, y
     // el mensaje daría un salto visible al confirmarse.
-    const optimistic: PendingMessage = { ...message({ id: "c1", authorId: ME }), pending: true };
+    const optimistic: PendingMessage = {
+      ...message({ id: "c1", authorId: ME }),
+      pending: true,
+    };
     const { rerender } = render(list([optimistic]));
 
     const before = screen.getByRole("listitem");
@@ -108,7 +111,9 @@ describe("MessageList", () => {
       ]),
     );
 
-    const visible = screen.getAllByText("Benito").filter((el) => !el.classList.contains("sr-only"));
+    const visible = screen
+      .getAllByText("Benito")
+      .filter((el) => !el.classList.contains("sr-only"));
 
     expect(visible).toHaveLength(2);
   });

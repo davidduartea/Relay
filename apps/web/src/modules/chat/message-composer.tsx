@@ -147,7 +147,9 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
           }}
           onBlur={stopTyping}
           onKeyDown={onKeyDown}
-          placeholder={disabled ? "Conectando… podrás escribir enseguida" : "Escribe un mensaje…"}
+          placeholder={
+            disabled ? "Conectando… podrás escribir enseguida" : "Escribe un mensaje…"
+          }
           aria-describedby={tooLong ? "message-error" : undefined}
           aria-invalid={tooLong || undefined}
           className={`rounded-control min-h-11 flex-1 resize-none px-3 py-2.5 text-sm leading-[22px] outline-none disabled:opacity-60 sm:min-h-15 ${
@@ -184,8 +186,8 @@ export function MessageComposer({ disabled, onSend, onTyping }: MessageComposerP
             // role="alert" para que se anuncie en cuanto aparece: un error que
             // sólo se ve no existe para quien usa lector de pantalla.
             <p id="message-error" role="alert" className="text-error text-xs font-medium">
-              <span aria-hidden="true">⚠</span> El mensaje no puede pasar de {MESSAGE_MAX_LENGTH}{" "}
-              caracteres.
+              <span aria-hidden="true">⚠</span> El mensaje no puede pasar de{" "}
+              {MESSAGE_MAX_LENGTH} caracteres.
             </p>
           ) : (
             <span />

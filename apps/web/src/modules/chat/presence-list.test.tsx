@@ -27,7 +27,9 @@ describe("PresenceList", () => {
   });
 
   it("dice quién está escribiendo en su propia fila", () => {
-    render(<PresenceList members={[ANA, MARTA]} currentUserId={ANA.id} typingIds={[MARTA.id]} />);
+    render(
+      <PresenceList members={[ANA, MARTA]} currentUserId={ANA.id} typingIds={[MARTA.id]} />,
+    );
 
     const marta = screen.getByText("Marta Ibáñez").closest("li");
 
@@ -39,5 +41,27 @@ describe("PresenceList", () => {
     render(<PresenceList members={[ANA]} currentUserId={ANA.id} />);
 
     expect(screen.getByRole("list")).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("cada instancia nombra su propia región", () => {
+    // Se monta dos veces a la vez: la columna lateral se oculta con
+    // `display:none` pero sigue en el DOM, y la hoja móvil añade otra. Con un
+    // `id` fijo había dos elementos iguales y `aria-labelledby` resolvía
+    // siempre al primero — el oculto —, así que la lista visible quedaba
+    // nombrada por un encabezado invisible.
+    render(
+      <>
+        <PresenceList members={[ANA]} currentUserId={ANA.id} />
+        <PresenceList members={[ANA]} currentUserId={ANA.id} bare />
+      </>,
+    );
+
+    const [lateral, hoja] = screen.getAllByRole("region");
+    const primerId = lateral?.getAttribute("aria-labelledby");
+    const segundoId = hoja?.getAttribute("aria-labelledby");
+
+    expect(primerId).toBeTruthy();
+    expect(segundoId).not.toBe(primerId);
+    expect(document.querySelectorAll(`#${CSS.escape(primerId ?? "")}`)).toHaveLength(1);
   });
 });

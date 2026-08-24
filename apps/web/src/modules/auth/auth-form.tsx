@@ -1,6 +1,11 @@
 "use client";
 
-import { DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, loginSchema, registerSchema } from "@relay/shared";
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  loginSchema,
+  registerSchema,
+} from "@relay/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -268,7 +273,9 @@ function Alert({
   ref?: React.Ref<HTMLDivElement>;
 }) {
   const skin =
-    tone === "error" ? "border-error border-l-error text-error" : "border-border text-ink-muted";
+    tone === "error"
+      ? "border-error border-l-error text-error"
+      : "border-border text-ink-muted";
 
   return (
     <div

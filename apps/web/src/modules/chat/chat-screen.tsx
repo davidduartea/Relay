@@ -2,7 +2,7 @@
 
 import type { Room } from "@relay/shared";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api-client";
 import { useSession } from "@/modules/auth/session-provider";
@@ -27,6 +27,11 @@ export function ChatScreen() {
   const refreshedFor = useRef<string | null>(null);
 
   const chat = useChat({ accessToken, roomId, currentUser: user });
+
+  // Identidad estable: el efecto de `Overlay` depende de ella, y una flecha en
+  // línea la cambiaría en cada render de esta pantalla — que renderiza con cada
+  // mensaje que llega, cada aviso de escritura y cada entrada a la sala.
+  const closePanel = useCallback(() => setPanel(null), []);
 
   // Sin sesión no hay nada que mostrar. Se espera a `ready` para no rebotar al
   // login durante el primer render, cuando localStorage aún no se ha leído.
@@ -98,10 +103,6 @@ export function ChatScreen() {
     setPanel(null);
   }
 
-  const roomList = (
-    <RoomList rooms={rooms} activeId={roomId} onChoose={chooseRoom} />
-  );
-
   return (
     <div className="flex h-dvh flex-col">
       {/* ── Cabecera ───────────────────────────────────────────────────────
@@ -139,7 +140,9 @@ export function ChatScreen() {
         </div>
 
         <div className="ml-auto flex items-center gap-3.5">
-          <span className="text-ink-muted hidden text-[13px] md:inline">{user.displayName}</span>
+          <span className="text-ink-muted hidden text-[13px] md:inline">
+            {user.displayName}
+          </span>
 
           <button
             type="button"
@@ -168,7 +171,7 @@ export function ChatScreen() {
           <h2 className="text-ink-muted px-4 pt-5 pb-2.5 text-xs font-semibold tracking-[0.12em] uppercase">
             Salas
           </h2>
-          {roomList}
+          <RoomList rooms={rooms} activeId={roomId} onChoose={chooseRoom} />
         </nav>
 
         <main id="main" className="bg-surface flex min-w-0 flex-1 flex-col">
@@ -218,16 +221,18 @@ export function ChatScreen() {
       </div>
 
       {/* ── Cajón de salas (móvil) ─────────────────────────────────────── */}
-      <Overlay open={panel === "rooms"} onClose={() => setPanel(null)} label="Salas">
+      <Overlay open={panel === "rooms"} onClose={closePanel} label="Salas">
         <div className="border-border bg-paper flex h-full w-63 flex-col border-r">
           <div className="border-rule flex h-14 flex-none items-center justify-between border-b pr-2 pl-4">
             <Wordmark size="sm" />
-            <CloseButton onClose={() => setPanel(null)} label="Cerrar las salas" />
+            <CloseButton onClose={closePanel} label="Cerrar las salas" />
           </div>
           <h2 className="text-ink-muted px-4 pt-3.5 pb-2 text-xs font-semibold tracking-[0.12em] uppercase">
             Salas
           </h2>
-          <div className="min-h-0 flex-1 overflow-y-auto">{roomList}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <RoomList rooms={rooms} activeId={roomId} onChoose={chooseRoom} />
+          </div>
           <div className="border-rule flex flex-none flex-col gap-2 border-t p-4">
             <span className="text-[13px]">{user.displayName}</span>
             <SignOutButton onSignOut={signOut} block />
@@ -238,7 +243,7 @@ export function ChatScreen() {
       {/* ── Hoja de presencia (móvil) ──────────────────────────────────── */}
       <Overlay
         open={panel === "presence"}
-        onClose={() => setPanel(null)}
+        onClose={closePanel}
         label="En la sala"
         placement="bottom"
       >
@@ -248,7 +253,7 @@ export function ChatScreen() {
             <span className="text-ink-muted text-xs font-semibold tracking-[0.12em] uppercase">
               En la sala · {chat.members.length}
             </span>
-            <CloseButton onClose={() => setPanel(null)} label="Cerrar la lista" />
+            <CloseButton onClose={closePanel} label="Cerrar la lista" />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <PresenceList
@@ -349,7 +354,10 @@ function ConnectionBadge({ status }: { status: ConnectionState }) {
         tone === "error" ? "md:border-error md:text-error text-error" : "md:border-border"
       } md:border md:px-2.5 md:py-1.5 ${tone === "error" ? "" : "md:text-ink"}`}
     >
-      <span aria-hidden="true" className={`hidden md:inline ${tone === "ok" ? "text-blue" : ""}`}>
+      <span
+        aria-hidden="true"
+        className={`hidden md:inline ${tone === "ok" ? "text-blue" : ""}`}
+      >
         {glyph}
       </span>
       {label}
@@ -395,17 +403,24 @@ function CloseButton({ onClose, label }: { onClose: () => void; label: string })
 /**
  * El envoltorio de los dos paneles móviles.
  *
- * Tres cosas que un `div` con `position:fixed` no da y hacen falta:
+ * Es un `<dialog>` de verdad abierto con `showModal()`, no un `div` con
+ * `position:fixed`. El navegador aporta cuatro cosas que antes estaban a mano
+ * y mal:
  *
- * - **Escape cierra.** Es lo que espera cualquiera que use teclado, y en un
- *   panel sin botón visible a la vista es la única salida rápida.
- * - **El foco entra al abrir y vuelve al botón al cerrar.** Sin esto el foco se
- *   queda detrás del velo, navegando por una pantalla que no se ve.
- * - **`aria-modal`** avisa al lector de pantalla de que lo de detrás no cuenta
- *   mientras esto esté abierto.
+ * - **Trampa de foco real.** La versión anterior declaraba `aria-modal="true"`
+ *   sin implementarla: con Tab se recorría la lista de salas y la caja de
+ *   escritura que estaban tapadas por el velo. Prometer modal y no serlo es
+ *   peor que no prometerlo.
+ * - **Escape**, que dispara el evento `close`.
+ * - **Devolver el foco** a quien abrió el panel, sin guardarlo en una ref.
+ * - **`::backdrop`**, que sustituye al `<button>` a pantalla completa que hacía
+ *   de velo — y que era una parada de tabulación colocada *antes* del
+ *   contenido del diálogo.
  *
  * El velo es tinta al 14%, no negro: un negro puro sobre una paleta índigo se
  * lee como un agujero.
+ *
+ * 📖 https://developer.mozilla.org/docs/Web/API/HTMLDialogElement/showModal
  */
 function Overlay({
   open,
@@ -420,58 +435,68 @@ function Overlay({
   placement?: "left" | "bottom";
   children: React.ReactNode;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const opener = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
+  /**
+   * El efecto depende sólo de `open`.
+   *
+   * Antes dependía también de `onClose`, que llega como flecha en línea y
+   * cambia de identidad en cada render de `ChatScreen` — y esta pantalla
+   * renderiza con cada mensaje, cada aviso de escritura y cada entrada o
+   * salida de la sala. Cada uno ejecutaba la limpieza, que devolvía el foco al
+   * botón de apertura: el foco saltaba fuera del panel abierto varias veces
+   * por segundo.
+   */
   useEffect(() => {
-    if (!open) {
+    const dialog = dialogRef.current;
+
+    if (!dialog) {
       return;
     }
 
-    opener.current = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
+    if (open && !dialog.open) {
+      dialog.showModal();
     }
 
-    document.addEventListener("keydown", onKeyDown);
+    if (!open && dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
 
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      opener.current?.focus();
-    };
-  }, [open, onClose]);
-
-  if (!open) {
-    return null;
+  /**
+   * Al pulsar el velo, el objetivo del evento es el propio `<dialog>`: el
+   * contenido vive en su hijo. Es la forma de distinguir «fuera» de «dentro»
+   * sin añadir un elemento que capture el clic.
+   */
+  function onBackdropClick(event: React.MouseEvent<HTMLDialogElement>) {
+    if (event.target === dialogRef.current) {
+      onClose();
+    }
   }
 
   return (
-    <div
-      className={`bg-ink/14 fixed inset-0 z-40 flex md:hidden ${
-        placement === "bottom" ? "items-end" : ""
-      }`}
+    // jsx-a11y pide un manejador de teclado junto a `onClick`, pero aquí lo
+    // pone el navegador: en un diálogo modal Escape dispara `close`, que es
+    // justamente el equivalente por teclado de pulsar el velo. Añadir un
+    // `onKeyDown` propio duplicaría ese comportamiento.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
+    <dialog
+      ref={dialogRef}
+      aria-label={label}
+      // `close` cubre las dos salidas del navegador — Escape y `dialog.close()`
+      // — así que el estado de React se entera pase lo que pase.
+      onClose={onClose}
+      onClick={onBackdropClick}
+      // El diálogo es sólo el marco: transparente y del tamaño de la ventana.
+      // El velo lo pinta `::backdrop`, que el navegador coloca por debajo en la
+      // capa superior. Las clases `max-*-none` y `m-0` deshacen los estilos por
+      // defecto del navegador, que centra el diálogo y lo limita a
+      // `calc(100% - 6px - 2em)`.
+      className="backdrop:bg-ink/14 m-0 h-dvh max-h-none w-dvw max-w-none border-0 bg-transparent p-0"
     >
-      {/* El velo cierra al tocarlo. Va como <button> y no como un div con
-          onClick para que también responda al teclado — aunque quien use
-          teclado llegará antes por Escape. */}
-      <button type="button" onClick={onClose} className="absolute inset-0 -z-10">
-        <span className="sr-only">Cerrar</span>
-      </button>
-
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        tabIndex={-1}
-        className={placement === "bottom" ? "w-full" : "h-full"}
-      >
+      <div className={`flex h-full ${placement === "bottom" ? "items-end" : ""}`}>
         {children}
       </div>
-    </div>
+    </dialog>
   );
 }

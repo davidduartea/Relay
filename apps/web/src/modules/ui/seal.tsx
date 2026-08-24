@@ -61,7 +61,9 @@ export function initials(name: string): string {
   }
 
   const letters =
-    words.length === 1 ? (words[0] ?? "").slice(0, 2) : words.slice(0, 2).map((w) => w[0] ?? "");
+    words.length === 1
+      ? (words[0] ?? "").slice(0, 2)
+      : words.slice(0, 2).map((w) => w[0] ?? "");
 
   return [...letters].join("").toUpperCase();
 }

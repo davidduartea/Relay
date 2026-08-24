@@ -143,3 +143,91 @@ test.describe("navegación por teclado", () => {
     await expect(frontend).toHaveAttribute("aria-current", "true");
   });
 });
+
+/**
+ * Los paneles móviles.
+ *
+ * Se abren con `showModal()`, así que la trampa de foco la pone el navegador.
+ * Estos tests comprueban que sigue puesta: la versión anterior declaraba
+ * `aria-modal="true"` con un `div`, y con Tab se recorría la lista de salas y
+ * la caja de escritura que estaban tapadas por el velo.
+ */
+test.describe("paneles móviles", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  /**
+   * Qué tiene el foco, si está fuera del diálogo.
+   *
+   * Devuelve `null` cuando el foco está dentro y también cuando está en
+   * `<body>`: al cerrar el ciclo, Chromium deja el foco ahí un instante antes
+   * de volver al primer elemento. No es un destino en el que se pueda hacer
+   * nada, sólo el punto de retorno — lo que importa es que ningún control de
+   * detrás del velo llegue a recibirlo.
+   */
+  const escapedTo = (page: Page) =>
+    page.evaluate(() => {
+      const active = document.activeElement;
+
+      if (!active || active === document.body || active.closest("dialog")) {
+        return null;
+      }
+
+      return `${active.tagName} «${active.textContent?.trim().slice(0, 30)}»`;
+    });
+
+  test("el cajón de salas retiene el foco", async ({ page }) => {
+    await register(page, makeUser("cajon"));
+
+    await page.getByRole("button", { name: /Salas\. Estás en/ }).click();
+    await expect(page.getByRole("dialog", { name: "Salas" })).toBeVisible();
+
+    // Diez tabulaciones dan dos vueltas largas al cajón, que tiene cuatro
+    // paradas. Sin trampa de foco se llegaría a la lista de salas de detrás,
+    // a la caja de escritura y al botón de salir.
+    for (let i = 0; i < 10; i += 1) {
+      await page.keyboard.press("Tab");
+      expect(await escapedTo(page)).toBeNull();
+    }
+  });
+
+  test("Escape cierra y devuelve el foco a quien abrió", async ({ page }) => {
+    await register(page, makeUser("escape"));
+
+    const opener = page.getByRole("button", { name: /Salas\. Estás en/ });
+    await opener.click();
+    await expect(page.getByRole("dialog", { name: "Salas" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByRole("dialog", { name: "Salas" })).toBeHidden();
+    await expect(opener).toBeFocused();
+  });
+
+  test("la hoja de presencia se abre desde el recuento", async ({ page }) => {
+    await register(page, makeUser("hoja"));
+
+    await page.getByRole("button", { name: "Ver quién está en la sala" }).click();
+
+    const sheet = page.getByRole("dialog", { name: "En la sala" });
+
+    await expect(sheet).toBeVisible();
+    // La región tiene que ser la de la hoja, no la de la columna oculta.
+    await expect(sheet.getByRole("region", { name: /presencia/i })).toBeVisible();
+  });
+
+  test("el chat en móvil no tiene violaciones", async ({ page }) => {
+    await register(page, makeUser("movil"));
+    await sendMessage(page, uniqueText("un mensaje en móvil"));
+    await expect(messageLog(page).getByRole("listitem").last()).toBeVisible();
+
+    await expectNoViolations(page);
+  });
+
+  test("el cajón abierto no tiene violaciones", async ({ page }) => {
+    await register(page, makeUser("cajon-axe"));
+    await page.getByRole("button", { name: /Salas\. Estás en/ }).click();
+    await expect(page.getByRole("dialog", { name: "Salas" })).toBeVisible();
+
+    await expectNoViolations(page);
+  });
+});

@@ -78,7 +78,10 @@ describe("ChatGateway (integración)", () => {
     timeoutMs = 2000,
   ): Promise<Parameters<ServerToClientEvents[K]>[0]> {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`sin "${String(event)}" a tiempo`)), timeoutMs);
+      const timer = setTimeout(
+        () => reject(new Error(`sin "${String(event)}" a tiempo`)),
+        timeoutMs,
+      );
 
       untyped(socket).once(String(event), (payload) => {
         clearTimeout(timer);
@@ -90,7 +93,8 @@ describe("ChatGateway (integración)", () => {
   const join = (socket: ClientSocket, roomId = ROOM_ID) =>
     socket.emitWithAck("room:join", { roomId }) as Promise<Ack<{ roomId: string }>>;
 
-  const tokenFor = (payload: object) => jwt.signAsync(payload, { secret: ENV["JWT_ACCESS_SECRET"] });
+  const tokenFor = (payload: object) =>
+    jwt.signAsync(payload, { secret: ENV["JWT_ACCESS_SECRET"] });
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -166,7 +170,9 @@ describe("ChatGateway (integración)", () => {
     it("responde con ack de error si el roomId no es un uuid", async () => {
       const socket = await connect(await tokenFor(ANA));
 
-      const ack = (await socket.emitWithAck("room:join", { roomId: "no-es-uuid" })) as Ack<unknown>;
+      const ack = (await socket.emitWithAck("room:join", {
+        roomId: "no-es-uuid",
+      })) as Ack<unknown>;
 
       expect(ack).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
     });

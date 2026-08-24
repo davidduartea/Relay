@@ -89,7 +89,9 @@ export function loadWebOrigin(source: NodeJS.ProcessEnv = process.env): string {
   const result = schema.shape.WEB_ORIGIN.safeParse(source["WEB_ORIGIN"]);
 
   if (!result.success) {
-    throw new Error(`WEB_ORIGIN inválido: ${result.error.issues[0]?.message ?? "valor no válido"}`);
+    throw new Error(
+      `WEB_ORIGIN inválido: ${result.error.issues[0]?.message ?? "valor no válido"}`,
+    );
   }
 
   return result.data;

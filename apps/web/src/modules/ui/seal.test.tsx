@@ -41,6 +41,8 @@ describe("Seal", () => {
     // árbol de accesibilidad — así que se comprueba con `ignore`, que es lo
     // que ve de verdad un lector de pantalla.
     expect(screen.getByText("GE")).toHaveAttribute("aria-hidden", "true");
-    expect(screen.queryByText("GE", { ignore: "[aria-hidden='true']" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("GE", { ignore: "[aria-hidden='true']" }),
+    ).not.toBeInTheDocument();
   });
 });

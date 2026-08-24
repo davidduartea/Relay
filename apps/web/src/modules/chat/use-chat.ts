@@ -160,11 +160,7 @@ export function useChat({ accessToken, roomId, currentUser }: UseChatOptions) {
       setTypingUsers((current) => current.filter((user) => user.id !== payload.userId));
     };
 
-    const onTyping = (payload: {
-      userId: string;
-      displayName: string;
-      isTyping: boolean;
-    }) => {
+    const onTyping = (payload: { userId: string; displayName: string; isTyping: boolean }) => {
       const timers = typingTimers.current;
       clearTimeout(timers.get(payload.userId));
 
@@ -290,5 +286,15 @@ export function useChat({ accessToken, roomId, currentUser }: UseChatOptions) {
     [members, currentUser],
   );
 
-  return { status, messages, members, others, typingUsers, error, send, setTyping, dismissError };
+  return {
+    status,
+    messages,
+    members,
+    others,
+    typingUsers,
+    error,
+    send,
+    setTyping,
+    dismissError,
+  };
 }

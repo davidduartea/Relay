@@ -9,7 +9,10 @@ import type { PresenceUser } from "@relay/shared";
  */
 export function TypingIndicator({ users }: { users: PresenceUser[] }) {
   return (
-    <p aria-live="polite" className="text-ink-muted flex h-7 flex-none items-center px-4 text-xs sm:px-8">
+    <p
+      aria-live="polite"
+      className="text-ink-muted flex h-7 flex-none items-center px-4 text-xs sm:px-8"
+    >
       {describe(users)}
     </p>
   );
