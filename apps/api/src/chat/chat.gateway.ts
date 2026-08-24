@@ -8,18 +8,8 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import type {
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  OnGatewayInit,
-} from "@nestjs/websockets";
-import {
-  ackError,
-  ackOk,
-  joinRoomSchema,
-  sendMessageSchema,
-  typingSchema,
-} from "@relay/shared";
+import type { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit } from "@nestjs/websockets";
+import { ackError, ackOk, joinRoomSchema, sendMessageSchema, typingSchema } from "@relay/shared";
 import type {
   Ack,
   ClientToServerEvents,
@@ -190,10 +180,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       // Se devuelve por acknowledgement en vez de lanzar: una excepción en un
       // gateway llega al cliente como un evento suelto de error, sin forma de
       // saber qué envío la provocó. El ack va atado a esta llamada concreta.
-      return ackError(
-        "VALIDATION_FAILED",
-        parsed.error.issues[0]?.message ?? "Mensaje inválido",
-      );
+      return ackError("VALIDATION_FAILED", parsed.error.issues[0]?.message ?? "Mensaje inválido");
     }
 
     const { roomId, body, clientId } = parsed.data;

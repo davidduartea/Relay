@@ -90,8 +90,6 @@ describe("RoomsService", () => {
     // que la base no responde.
     room.create.mockRejectedValue(new Error("connection refused"));
 
-    await expect(service.create({ name: "X", slug: "x" })).rejects.toThrow(
-      "connection refused",
-    );
+    await expect(service.create({ name: "X", slug: "x" })).rejects.toThrow("connection refused");
   });
 });

@@ -116,12 +116,7 @@ describe("MessagesService", () => {
       message.create.mockRejectedValue(new Error("connection refused"));
 
       await expect(
-        service.create({
-          roomId: ROOM_ID,
-          authorId: "user-ana",
-          body: "hola",
-          clientId: CLIENT_ID,
-        }),
+        service.create({ roomId: ROOM_ID, authorId: "user-ana", body: "hola", clientId: CLIENT_ID }),
       ).rejects.toThrow("connection refused");
     });
   });

@@ -53,10 +53,7 @@ export class RoomsService {
       // un `findUnique` previo deja una ventana entre la comprobación y el
       // insert en la que otra petición puede colarse con el mismo slug. La
       // restricción única de la base no tiene esa ventana.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_VIOLATION
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION) {
         throw new ConflictException(`Ya existe una sala con el slug "${input.slug}"`);
       }
 

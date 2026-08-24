@@ -53,10 +53,7 @@ export class MessagesService {
 
       return toMessage(row);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_VIOLATION
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION) {
         const existing = await this.prisma.message.findUnique({
           where: { roomId_clientId: { roomId: params.roomId, clientId: params.clientId } },
           select: SHAPE,

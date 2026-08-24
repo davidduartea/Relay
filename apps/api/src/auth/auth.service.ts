@@ -50,10 +50,7 @@ export class AuthService {
 
       return this.startSession(user);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_VIOLATION
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION) {
         throw new ConflictException("Ese correo ya está registrado");
       }
 
