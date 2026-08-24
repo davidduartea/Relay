@@ -2,7 +2,7 @@ import type { Message } from "@relay/shared";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useChat } from "./use-chat";
+import { useChat } from "@/modules/chat/hooks/useChat";
 
 /** Socket falso: guarda los listeners para poder dispararlos desde el test. */
 function createFakeSocket() {
@@ -14,7 +14,10 @@ function createFakeSocket() {
       listeners.set(event, [...(listeners.get(event) ?? []), handler]);
     }),
     off: vi.fn((event: string, handler: (payload: unknown) => void) => {
-      listeners.set(event, (listeners.get(event) ?? []).filter((h) => h !== handler));
+      listeners.set(
+        event,
+        (listeners.get(event) ?? []).filter((h) => h !== handler),
+      );
     }),
     emit: vi.fn(),
     emitWithAck: vi.fn().mockResolvedValue({ ok: true, data: {} }),
@@ -99,12 +102,18 @@ describe("useChat", () => {
     // El clientId lo genera el hook, así que se toma del envío real en vez de
     // inventarlo: el servidor lo devuelve tal cual, y es la única pista que
     // tiene el cliente para saber que ese mensaje es su copia optimista.
-    fakeSocket.emitWithAck.mockImplementation((_event: string, payload: { clientId: string }) => {
-      const confirmed = message({ id: "server-1", clientId: payload.clientId, authorId: ANA.id });
-      fakeSocket.fire("message:new", confirmed);
+    fakeSocket.emitWithAck.mockImplementation(
+      (_event: string, payload: { clientId: string }) => {
+        const confirmed = message({
+          id: "server-1",
+          clientId: payload.clientId,
+          authorId: ANA.id,
+        });
+        fakeSocket.fire("message:new", confirmed);
 
-      return Promise.resolve({ ok: true, data: confirmed });
-    });
+        return Promise.resolve({ ok: true, data: confirmed });
+      },
+    );
 
     // El servidor devuelve el mensaje a todos, incluido el autor. Si no se
     // reconciliara por clientId, quien escribe vería su mensaje dos veces.

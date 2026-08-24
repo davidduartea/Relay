@@ -23,7 +23,7 @@
     "db:studio": "pnpm --filter @relay/api db:studio",
     "postinstall": "pnpm --filter @relay/api exec node scripts/ensure-prisma-client.mjs",
     "free-port": "node scripts/free-port.mjs",
-    "e2e": "pnpm --filter @relay/e2e e2e",
+    "e2e": "pnpm --filter @relay/api db:clear-messages && pnpm --filter @relay/e2e e2e",
     "e2e:ui": "pnpm --filter @relay/e2e e2e:ui",
     "e2e:report": "pnpm --filter @relay/e2e e2e:report"
   },

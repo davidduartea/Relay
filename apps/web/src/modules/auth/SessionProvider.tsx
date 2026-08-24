@@ -1,10 +1,18 @@
 "use client";
 
 import type { AuthSession, AuthUser } from "@relay/shared";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
-import { api } from "@/lib/api-client";
+import { api } from "@/services/api-service";
 import { clearSession, readSession, writeSession } from "@/lib/session-store";
 import { createTokenRefresher } from "@/lib/token-refresher";
 

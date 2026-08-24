@@ -46,16 +46,26 @@ export const typingSchema = z.object({
   isTyping: z.boolean(),
 });
 
+/**
+ * Todos los mensajes son explícitos y en español.
+ *
+ * Sin el segundo argumento, Zod usa sus textos por defecto — en inglés — y en
+ * una interfaz en español quien escribe mal el correo lee «Invalid email
+ * address». Como el esquema es compartido, el texto que enseña el formulario es
+ * exactamente el que devuelve el servidor.
+ */
 export const registerSchema = z.object({
-  email: z.email(),
-  displayName: z.string().trim().min(1).max(DISPLAY_NAME_MAX_LENGTH),
-  password: z
+  email: z.email("Formato de correo no válido"),
+  displayName: z
     .string()
-    .min(PASSWORD_MIN_LENGTH, `Mínimo ${PASSWORD_MIN_LENGTH} caracteres`),
+    .trim()
+    .min(1, "Falta el nombre")
+    .max(DISPLAY_NAME_MAX_LENGTH, `Máximo ${DISPLAY_NAME_MAX_LENGTH} caracteres`),
+  password: z.string().min(PASSWORD_MIN_LENGTH, `Mínimo ${PASSWORD_MIN_LENGTH} caracteres`),
 });
 
 export const loginSchema = z.object({
-  email: z.email(),
+  email: z.email("Formato de correo no válido"),
   password: z.string().min(1, "Escribe tu contraseña"),
 });
 

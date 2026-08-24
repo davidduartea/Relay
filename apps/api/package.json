@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:clear-messages": "node scripts/clear-messages.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

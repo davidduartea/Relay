@@ -57,7 +57,9 @@ test.describe("autenticación", () => {
     await page.getByLabel("Contraseña").fill("corta");
     await page.getByRole("button", { name: "Crear cuenta" }).click();
 
-    await expect(page.getByText(/mínimo 12 caracteres/i)).toBeVisible();
+    // Exacto a propósito: la pista bajo el campo dice lo mismo con punto
+    // final, así que sin `exact` el localizador encontraría los dos.
+    await expect(page.getByText("Mínimo 12 caracteres", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/register$/);
   });
 
@@ -110,7 +112,15 @@ test.describe("autenticación", () => {
     await page.keyboard.type(user.displayName);
     await page.keyboard.press("Tab");
     await page.keyboard.type(user.password);
+
+    // Ver/Ocultar vive dentro del campo de contraseña, así que es una parada
+    // más antes del botón. Se comprueba en vez de saltarla a ciegas: si algún
+    // día cambia el orden, el test dice cuál es el paso que se movió.
     await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Ver" })).toBeFocused();
+
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Crear cuenta" })).toBeFocused();
     await page.keyboard.press("Enter");
 
     await expect(page).toHaveURL(/\/chat$/);

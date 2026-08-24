@@ -36,3 +36,24 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+
+/**
+ * La misma API, vista desde el servidor de Next.
+ *
+ * El navegador y el contenedor de Next **no llegan al API por la misma
+ * dirección**. En un despliegue con Docker el navegador usa el dominio público
+ * y el servidor tiene al API a un salto de red interno — `http://api:4000` en
+ * el compose de este repositorio. Usar la URL pública desde dentro obliga a
+ * salir a internet y volver, cuando funciona; y en redes cerradas no funciona.
+ *
+ * Por eso es una variable aparte y **sin** el prefijo `NEXT_PUBLIC_`: sólo la
+ * lee el servidor, así que no tiene por qué acabar incrustada en el bundle que
+ * descarga cualquiera.
+ *
+ * Cuando no está definida cae a la pública, que es lo correcto en desarrollo y
+ * en un despliegue donde ambos comparten red.
+ */
+export const INTERNAL_API_URL = (process.env["API_INTERNAL_URL"] ?? API_URL).replace(
+  /\/+$/,
+  "",
+);

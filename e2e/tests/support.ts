@@ -84,8 +84,14 @@ export async function sendMessage(page: Page, body: string): Promise<void> {
   await composer(page).press("Enter");
 }
 
-/** La lista de presencia lateral. */
-export const presence = (page: Page) => page.getByRole("region", { name: /en la sala/i });
+/**
+ * La lista de presencia lateral.
+ *
+ * En escritorio es la columna derecha; por debajo de `lg` esa columna se oculta
+ * y la lista vive en la hoja que abre el recuento de la cabecera. El nombre de
+ * la región es el mismo en los dos sitios.
+ */
+export const presence = (page: Page) => page.getByRole("region", { name: /presencia/i });
 
 /**
  * El aviso de error del contenido, acotado a `main`.
