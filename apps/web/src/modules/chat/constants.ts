@@ -1,4 +1,4 @@
-import type { ConnectionState } from "./use-chat";
+import type { ConnectionState } from "@/modules/chat/hooks/useChat";
 
 interface StatusCopy {
   label: string;

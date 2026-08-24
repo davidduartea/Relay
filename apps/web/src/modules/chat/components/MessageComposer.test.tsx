@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MessageComposer } from "./message-composer";
+import { MessageComposer } from "@/modules/chat/components/MessageComposer";
 
 describe("MessageComposer", () => {
   const onSend = vi.fn<(body: string) => Promise<boolean>>();

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { AuthForm } from "@/modules/auth/auth-form";
+import { AuthForm } from "@/modules/auth";
 
 export const metadata: Metadata = { title: "Entrar · Relay" };
 

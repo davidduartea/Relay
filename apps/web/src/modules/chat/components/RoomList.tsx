@@ -1,6 +1,6 @@
 import type { Room } from "@relay/shared";
 
-import { Seal } from "@/modules/ui/seal";
+import { Seal } from "@/components/Seal";
 
 interface RoomListProps {
   rooms: Room[];

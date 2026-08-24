@@ -38,9 +38,9 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/test/**",
         "src/app/**",
-        "src/modules/auth/auth-form.tsx",
-        "src/modules/auth/session-provider.tsx",
-        "src/modules/chat/chat-screen.tsx",
+        "src/modules/auth/index.tsx",
+        "src/modules/auth/SessionProvider.tsx",
+        "src/modules/chat/main/ChatScreen.tsx",
       ],
 
       thresholds: { lines: 70, functions: 70, branches: 70, statements: 70 },

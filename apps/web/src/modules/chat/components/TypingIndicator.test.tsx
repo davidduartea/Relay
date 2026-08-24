@@ -2,7 +2,7 @@ import type { PresenceUser } from "@relay/shared";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { TypingIndicator } from "./typing-indicator";
+import { TypingIndicator } from "@/modules/chat/components/TypingIndicator";
 
 const who = (displayName: string): PresenceUser => ({ id: displayName, displayName });
 

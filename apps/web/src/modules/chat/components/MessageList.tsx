@@ -3,11 +3,11 @@
 import { useEffect, useRef } from "react";
 
 import { isSameDay } from "@/lib/format-time";
-import { Seal } from "@/modules/ui/seal";
-import { DaySeparator } from "./day-separator";
-import { OwnMessage } from "./own-message";
-import { TheirMessage } from "./their-message";
-import type { ChatMessage } from "./use-chat";
+import { Seal } from "@/components/Seal";
+import { DaySeparator } from "@/modules/chat/components/DaySeparator";
+import { OwnMessage } from "@/modules/chat/components/OwnMessage";
+import { TheirMessage } from "@/modules/chat/components/TheirMessage";
+import type { ChatMessage } from "@/modules/chat/hooks/useChat";
 
 interface MessageListProps {
   messages: ChatMessage[];

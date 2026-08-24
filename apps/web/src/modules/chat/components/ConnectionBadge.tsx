@@ -1,5 +1,5 @@
-import { CONNECTION_STATUS } from "./connection-status";
-import type { ConnectionState } from "./use-chat";
+import { CONNECTION_STATUS } from "@/modules/chat/constants";
+import type { ConnectionState } from "@/modules/chat/hooks/useChat";
 
 /**
  * El estado de la conexión.

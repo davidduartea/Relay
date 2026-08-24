@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { Field } from "./field";
-import { PasswordField } from "./password-field";
+import { Field } from "@/modules/auth/components/Field";
+import { PasswordField } from "@/modules/auth/components/PasswordField";
 
 describe("Field", () => {
   it("ata la etiqueta al campo", () => {
@@ -16,7 +16,12 @@ describe("Field", () => {
     // El lector lee etiqueta → pista → error, que es como se entiende qué se
     // pedía y qué falló.
     render(
-      <Field name="displayName" label="Nombre" hint="Lo verán los demás." error="Falta el nombre" />,
+      <Field
+        name="displayName"
+        label="Nombre"
+        hint="Lo verán los demás."
+        error="Falta el nombre"
+      />,
     );
 
     const input = screen.getByLabelText("Nombre");
@@ -49,7 +54,10 @@ describe("PasswordField", () => {
     render(<PasswordField autoComplete="new-password" />);
 
     expect(screen.getByLabelText("Contraseña")).toHaveAttribute("type", "password");
-    expect(screen.getByRole("button", { name: "Ver" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Ver" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("Ver descubre el texto y cambia su propio nombre", async () => {

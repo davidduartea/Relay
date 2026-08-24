@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { Alert } from "./alert";
+import { Alert } from "@/components/Alert";
 
 describe("Alert", () => {
   it("se anuncia en cuanto aparece", () => {

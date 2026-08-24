@@ -1,7 +1,7 @@
 import type { PresenceUser } from "@relay/shared";
 import { useId } from "react";
 
-import { Seal } from "@/modules/ui/seal";
+import { Seal } from "@/components/Seal";
 
 interface PresenceListProps {
   members: PresenceUser[];

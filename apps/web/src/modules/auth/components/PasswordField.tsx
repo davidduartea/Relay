@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import { FieldBox } from "./field-box";
-import { FieldShell } from "./field-shell";
+import { FieldBox } from "@/modules/auth/components/FieldBox";
+import { FieldShell } from "@/modules/auth/components/FieldShell";
 
 /**
  * El campo de contraseña, con Ver/Ocultar.

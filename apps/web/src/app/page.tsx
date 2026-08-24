@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { Rule } from "@/modules/ui/rule";
-import { Seal } from "@/modules/ui/seal";
-import { Wordmark } from "@/modules/ui/wordmark";
+import { Rule } from "@/components/Rule";
+import { Seal } from "@/components/Seal";
+import { Wordmark } from "@/components/Wordmark";
 
 export default function HomePage() {
   return (

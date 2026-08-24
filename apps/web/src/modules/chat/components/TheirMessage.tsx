@@ -1,6 +1,6 @@
 import { formatTime } from "@/lib/format-time";
-import { Seal } from "@/modules/ui/seal";
-import type { ChatMessage } from "./use-chat";
+import { Seal } from "@/components/Seal";
+import type { ChatMessage } from "@/modules/chat/hooks/useChat";
 
 /**
  * Mensaje ajeno: sello, nombre y el texto desnudo.

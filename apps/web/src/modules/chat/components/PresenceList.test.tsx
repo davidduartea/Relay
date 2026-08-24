@@ -2,7 +2,7 @@ import type { PresenceUser } from "@relay/shared";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { PresenceList } from "./presence-list";
+import { PresenceList } from "@/modules/chat/components/PresenceList";
 
 const ANA: PresenceUser = { id: "user-ana", displayName: "Ana Ruiz" };
 const MARTA: PresenceUser = { id: "user-marta", displayName: "Marta Ibáñez" };

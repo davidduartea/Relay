@@ -1,6 +1,6 @@
 import type { AuthSession, LoginInput, RegisterInput, Room } from "@relay/shared";
 
-import { API_URL } from "./api-url";
+import { API_URL } from "@/lib/api-url";
 
 /**
  * Cuánto esperar cuando el servidor corta por exceso de intentos y no dice

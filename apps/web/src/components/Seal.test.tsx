@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { Seal } from "./seal";
+import { Seal } from "@/components/Seal";
 
 describe("Seal", () => {
   it("se oculta al lector de pantalla", () => {

@@ -12,16 +12,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
-import { ApiError, api } from "@/lib/api-client";
+import { ApiError, api } from "@/services/api-service";
 import { formatCountdown } from "@/lib/format-time";
-import { Alert } from "@/modules/ui/alert";
-import { Rule } from "@/modules/ui/rule";
-import { Wordmark } from "@/modules/ui/wordmark";
-import { AUTH_COPY } from "./auth-copy";
-import { Field } from "./field";
-import { PasswordField } from "./password-field";
-import { useSession } from "./session-provider";
-import type { AuthMode } from "./auth-copy";
+import { Alert } from "@/components/Alert";
+import { Rule } from "@/components/Rule";
+import { Wordmark } from "@/components/Wordmark";
+import { AUTH_COPY } from "@/modules/auth/constants";
+import { Field } from "@/modules/auth/components/Field";
+import { PasswordField } from "@/modules/auth/components/PasswordField";
+import { useSession } from "@/modules/auth/SessionProvider";
+import type { AuthMode } from "@/modules/auth/constants";
 
 type FieldErrors = Record<string, string>;
 

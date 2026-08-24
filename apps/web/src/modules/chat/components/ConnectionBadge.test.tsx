@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { ConnectionBadge } from "./connection-badge";
-import { CONNECTION_STATUS } from "./connection-status";
-import type { ConnectionState } from "./use-chat";
+import { ConnectionBadge } from "@/modules/chat/components/ConnectionBadge";
+import { CONNECTION_STATUS } from "@/modules/chat/constants";
+import type { ConnectionState } from "@/modules/chat/hooks/useChat";
 
 const STATES = Object.keys(CONNECTION_STATUS) as ConnectionState[];
 

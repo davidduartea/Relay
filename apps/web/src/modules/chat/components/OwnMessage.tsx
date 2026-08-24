@@ -1,6 +1,6 @@
 import { formatTime } from "@/lib/format-time";
-import { isPending } from "./use-chat";
-import type { ChatMessage } from "./use-chat";
+import { isPending } from "@/modules/chat/hooks/useChat";
+import type { ChatMessage } from "@/modules/chat/hooks/useChat";
 
 /**
  * Mensaje propio: bloque índigo a la derecha, sin nombre.

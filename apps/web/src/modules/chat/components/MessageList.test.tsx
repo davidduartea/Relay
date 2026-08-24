@@ -2,8 +2,8 @@ import type { Message } from "@relay/shared";
 import { render, screen, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { MessageList } from "./message-list";
-import type { PendingMessage } from "./use-chat";
+import { MessageList } from "@/modules/chat/components/MessageList";
+import type { PendingMessage } from "@/modules/chat/hooks/useChat";
 
 const ME = "user-ana";
 const ROOM = "general";

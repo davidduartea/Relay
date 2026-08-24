@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { RoomList } from "./room-list";
+import { RoomList } from "@/modules/chat/components/RoomList";
 
 const ROOMS: Room[] = [
   { id: "r1", name: "General", slug: "general" },
@@ -18,7 +18,9 @@ describe("RoomList", () => {
       "aria-current",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Frontend" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("button", { name: "Frontend" })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
   it("no mete «aquí» en el nombre accesible", () => {

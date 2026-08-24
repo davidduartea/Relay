@@ -2,7 +2,7 @@ import { IBM_Plex_Sans, Jost } from "next/font/google";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { SessionProvider } from "@/modules/auth/session-provider";
+import { SessionProvider } from "@/modules/auth/SessionProvider";
 import "./globals.css";
 
 /**

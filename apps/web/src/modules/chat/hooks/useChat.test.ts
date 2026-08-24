@@ -2,7 +2,7 @@ import type { Message } from "@relay/shared";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useChat } from "./use-chat";
+import { useChat } from "@/modules/chat/hooks/useChat";
 
 /** Socket falso: guarda los listeners para poder dispararlos desde el test. */
 function createFakeSocket() {

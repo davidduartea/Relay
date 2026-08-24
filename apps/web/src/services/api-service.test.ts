@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, api } from "./api-client";
+import { ApiError, api } from "@/services/api-service";
 
 const CREDENTIALS = { email: "ana@relay.dev", password: "contrasena-larga-123" };
 

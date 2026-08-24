@@ -4,32 +4,32 @@ import type { Room } from "@relay/shared";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api } from "@/lib/api-client";
-import { useSession } from "@/modules/auth/session-provider";
-import { Alert } from "@/modules/ui/alert";
-import { IconButton } from "@/modules/ui/icon-button";
-import { Overlay } from "@/modules/ui/overlay";
-import { Rule } from "@/modules/ui/rule";
-import { Seal } from "@/modules/ui/seal";
-import { Wordmark } from "@/modules/ui/wordmark";
-import { ConnectionBadge } from "./connection-badge";
-import { MessageComposer } from "./message-composer";
-import { MessageList } from "./message-list";
-import { PresenceList } from "./presence-list";
-import { RoomList } from "./room-list";
-import { SignOutButton } from "./sign-out-button";
-import { TypingIndicator } from "./typing-indicator";
-import { useChat } from "./use-chat";
+import { useSession } from "@/modules/auth/SessionProvider";
+import { Alert } from "@/components/Alert";
+import { IconButton } from "@/components/IconButton";
+import { Overlay } from "@/components/Overlay";
+import { Rule } from "@/components/Rule";
+import { Seal } from "@/components/Seal";
+import { Wordmark } from "@/components/Wordmark";
+import { ConnectionBadge } from "@/modules/chat/components/ConnectionBadge";
+import { MessageComposer } from "@/modules/chat/components/MessageComposer";
+import { MessageList } from "@/modules/chat/components/MessageList";
+import { PresenceList } from "@/modules/chat/components/PresenceList";
+import { RoomList } from "@/modules/chat/components/RoomList";
+import { SignOutButton } from "@/modules/chat/components/SignOutButton";
+import { TypingIndicator } from "@/modules/chat/components/TypingIndicator";
+import { useChat } from "@/modules/chat/hooks/useChat";
 
 /** Qué panel modal está abierto. Sólo existen en móvil. */
 type Panel = "rooms" | "presence" | null;
 
-export function ChatScreen() {
+export function ChatScreen({ rooms }: { rooms: Room[] }) {
   const router = useRouter();
   const { user, accessToken, ready, signOut, refresh } = useSession();
 
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [roomId, setRoomId] = useState<string | null>(null);
+  // Las salas llegan del servidor ya resueltas, así que la sala inicial se
+  // elige en el primer render y no después de una ida y vuelta.
+  const [roomId, setRoomId] = useState<string | null>(rooms[0]?.id ?? null);
   const [panel, setPanel] = useState<Panel>(null);
 
   // Qué access token ya provocó un intento de renovación.
@@ -58,16 +58,6 @@ export function ChatScreen() {
       router.replace("/login");
     }
   }, [ready, user, router]);
-
-  useEffect(() => {
-    void api
-      .rooms()
-      .then((list) => {
-        setRooms(list);
-        setRoomId((current) => current ?? list[0]?.id ?? null);
-      })
-      .catch(() => undefined);
-  }, []);
 
   /**
    * Token caducado: se intenta renovar antes de rendirse.
