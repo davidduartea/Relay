@@ -49,6 +49,9 @@ services:
       # `postgres` es el nombre del servicio: dentro de la red de compose, el
       # DNS lo resuelve. `localhost` apuntaría al propio contenedor de la API.
       DATABASE_URL: postgresql://relay:relay@postgres:5432/relay?schema=public
+      # El entrypoint migra al arrancar y la CLI de Prisma pide una conexión
+      # sin pooler. Aquí no hay ninguno, así que es la misma.
+      DIRECT_URL: postgresql://relay:relay@postgres:5432/relay?schema=public
       WEB_ORIGIN: http://localhost:3000
       # Sin `:?` a propósito, aunque sean obligatorias: compose interpola
       # TODOS los servicios aunque sólo se arranque uno, así que esa forma

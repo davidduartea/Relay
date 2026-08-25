@@ -1,0 +1,44 @@
+# Blueprint de Render para el API.
+#
+# Sólo el API vive aquí: la web va en Vercel y Postgres en Supabase. Ver
+# docs/despliegue-gratuito.md.
+#
+# 📖 https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: relay-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+
+    # El Dockerfile está en apps/api pero se construye desde la RAÍZ del
+    # monorepo: necesita el lockfile y packages/shared, que quedan fuera de esa
+    # carpeta. Por eso `dockerContext` es `.` y no `./apps/api`.
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+
+    # Render espera a que esto responda antes de mandar tráfico. El contenedor
+    # aplica las migraciones antes de escuchar, así que el primer arranque tarda
+    # más que los siguientes.
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # `sync: false` significa: no la pongas aquí, pregúntamela en el panel.
+      # Es lo que evita que un secreto acabe versionado en el repositorio.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+# `PORT` no se declara: lo inyecta Render y el esquema de entorno lo lee.
+# `TRUST_PROXY_HOPS` tampoco: vale 1 por defecto, que es lo correcto detrás del
+# balanceador de Render.
