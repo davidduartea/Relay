@@ -10,7 +10,10 @@ services:
     name: relay-api
     runtime: docker
     plan: free
-    region: frankfurt
+    # Misma región que el proyecto de Supabase. Cada consulta cruza esta
+    # distancia, y con la base en Ohio y el API en Frankfurt serían más de
+    # 100 ms por consulta — en un chat se nota.
+    region: ohio
 
     # El Dockerfile está en apps/api pero se construye desde la RAÍZ del
     # monorepo: necesita el lockfile y packages/shared, que quedan fuera de esa
