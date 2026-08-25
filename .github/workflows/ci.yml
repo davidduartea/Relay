@@ -92,6 +92,9 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://relay:relay@localhost:5432/relay
+      # Sin pooler delante es la misma cadena, pero el esquema declara
+      # `directUrl` y Prisma la exige igual.
+      DIRECT_URL: postgresql://relay:relay@localhost:5432/relay
       JWT_ACCESS_SECRET: ci-access-secret-de-al-menos-32-caracteres
       JWT_REFRESH_SECRET: ci-refresh-secret-distinto-de-32-caracteres
       WEB_ORIGIN: http://localhost:3000

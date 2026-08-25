@@ -2,6 +2,11 @@
 
 Dos plataformas, porque el chat lo obliga.
 
+> **Sin presupuesto:** hay una variante gratuita en
+> [`despliegue-gratis.md`](./despliegue-gratis.md) — Vercel, Koyeb y Neon. El
+> coste es que el API duerme sin tráfico y la primera visita espera a que
+> arranque.
+
 ## Por qué no todo en Vercel
 
 Vercel admite WebSockets desde 2026, Socket.IO incluido. Aun así **el API no
@@ -74,6 +79,7 @@ En **Variables** del servicio del API:
 | -------------------- | ---------------------------------------------------------- |
 | `NODE_ENV`           | `production`                                               |
 | `DATABASE_URL`       | `${{Postgres.DATABASE_URL}}`                               |
+| `DIRECT_URL`         | igual que `DATABASE_URL`: aquí no hay pooler delante       |
 | `JWT_ACCESS_SECRET`  | 32+ caracteres aleatorios                                  |
 | `JWT_REFRESH_SECRET` | 32+ caracteres aleatorios, **distintos** de los anteriores |
 | `WEB_ORIGIN`         | de momento cualquier URL válida; se corrige en el paso 3   |

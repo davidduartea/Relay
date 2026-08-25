@@ -8,9 +8,27 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Dos URLs, no una.
+//
+// `url` es por donde consulta la aplicación. Con un Postgres gestionado que
+// pone un pooler delante — Neon, Supabase, cualquiera con PgBouncer — esa es
+// la conexión agrupada, que es justo lo que se quiere: muchas peticiones
+// cortas compartiendo un puñado de conexiones reales.
+//
+// `directUrl` es por donde migra la CLI. Un pooler en modo transacción **no
+// admite las sentencias DDL** que usa `migrate deploy` — CREATE TABLE, ALTER
+// TABLE — así que migrar por ahí falla. Y este contenedor migra al arrancar,
+// de modo que sin esto no levantaría contra una base con pooler.
+//
+// Sin pooler delante — Postgres en docker-compose, o en la propia máquina —
+// las dos son la misma cadena. Se declaran igualmente para que el esquema no
+// cambie según dónde se despliegue.
+//
+// 📖 https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/pgbouncer
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
