@@ -4,6 +4,7 @@ import { AuthModule } from "../auth/auth.module";
 import { MessagesModule } from "../messages/messages.module";
 import { RoomsModule } from "../rooms/rooms.module";
 import { ChatGateway } from "./chat.gateway";
+import { MessageRateLimiter } from "./message-rate-limiter";
 
 /**
  * El gateway de WebSocket.
@@ -18,6 +19,6 @@ import { ChatGateway } from "./chat.gateway";
   // emite el endpoint de auth, así que el mismo almacén de `jti` gastados tiene
   // que servir a los dos lados.
   imports: [RoomsModule, MessagesModule, AuthModule],
-  providers: [ChatGateway],
+  providers: [ChatGateway, MessageRateLimiter],
 })
 export class ChatModule {}

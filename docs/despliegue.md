@@ -78,6 +78,7 @@ En **Variables** del servicio del API:
 | `JWT_REFRESH_SECRET` | 32+ caracteres aleatorios, **distintos** de los anteriores |
 | `WEB_ORIGIN`         | de momento cualquier URL válida; se corrige en el paso 3   |
 | `APP_VERSION`        | opcional, sale en `/healthz`                               |
+| `TRUST_PROXY_HOPS`   | opcional; por defecto 1, que es lo correcto en Railway     |
 
 `PORT` **no se pone**: lo inyecta Railway y el esquema de entorno lo lee.
 
