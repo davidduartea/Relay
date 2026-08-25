@@ -80,7 +80,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@relay/shared"],
 
   /**
-   * Salida autocontenida para el contenedor.
+   * Salida autocontenida — sólo para el contenedor.
    *
    * `standalone` produce una carpeta con el servidor y **sólo** los módulos
    * que el build detectó como usados, en vez de arrastrar `node_modules`
@@ -89,9 +89,26 @@ const nextConfig: NextConfig = {
    * `outputFileTracingRoot` apunta a la raíz del monorepo porque el rastreo
    * arranca desde el directorio del proyecto: sin esto, no encontraría
    * `@relay/shared`, que vive dos niveles más arriba.
+   *
+   * **En Vercel las dos sobran, y juntas rompen el despliegue.** Vercel tiene
+   * su propio empaquetado y espera los manifiestos de rastreo dentro de
+   * `apps/web/.next/`; con la raíz movida al monorepo se escriben en otro
+   * sitio y el build muere con
+   *
+   *     ENOENT: .next/next-server.js.nft.json
+   *
+   * `VERCEL` es la variable que la plataforma define en todas sus
+   * construcciones, así que sirve para distinguir un caso del otro sin
+   * inventarse una propia.
+   *
+   * 📖 https://vercel.com/docs/environment-variables/system-environment-variables
    */
-  output: "standalone",
-  outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
+  ...(process.env["VERCEL"]
+    ? {}
+    : {
+        output: "standalone" as const,
+        outputFileTracingRoot: path.resolve(process.cwd(), "../.."),
+      }),
 
   // No anunciar el framework ni su versión: le ahorra al atacante saber contra
   // qué CVEs probar.
