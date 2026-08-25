@@ -139,3 +139,27 @@ describe("assertProductionConfig", () => {
     expect(message).toMatch(/DATABASE_URL/);
   });
 });
+
+describe("TRUST_PROXY_HOPS", () => {
+  it("confía en un salto por defecto", () => {
+    // Cualquier despliegue real está detrás del balanceador de su plataforma.
+    // Con 0, `req.ip` sería la del balanceador para todo el mundo y el límite
+    // de intentos pasaría a ser global: cinco fallos de cualquiera y nadie
+    // más puede entrar.
+    expect(loadEnvironment(VALID).TRUST_PROXY_HOPS).toBe(1);
+  });
+
+  it("acepta más saltos cuando hay varios proxies", () => {
+    expect(loadEnvironment({ ...VALID, TRUST_PROXY_HOPS: "2" }).TRUST_PROXY_HOPS).toBe(2);
+  });
+
+  it("permite desactivarlo con cero", () => {
+    expect(loadEnvironment({ ...VALID, TRUST_PROXY_HOPS: "0" }).TRUST_PROXY_HOPS).toBe(0);
+  });
+
+  it("rechaza un valor negativo", () => {
+    expect(() => loadEnvironment({ ...VALID, TRUST_PROXY_HOPS: "-1" })).toThrow(
+      /TRUST_PROXY_HOPS/,
+    );
+  });
+});

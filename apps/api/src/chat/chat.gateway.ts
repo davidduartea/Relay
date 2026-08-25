@@ -32,6 +32,7 @@ import { SocketTicketService } from "../auth/socket-ticket.service";
 import { loadWebOrigin } from "../config/environment";
 import { MessagesService } from "../messages/messages.service";
 import { RoomsService } from "../rooms/rooms.service";
+import { MessageRateLimiter } from "./message-rate-limiter";
 
 /**
  * El socket, tipado con el contrato compartido.
@@ -69,6 +70,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private readonly messages: MessagesService,
     private readonly rooms: RoomsService,
     private readonly tickets: SocketTicketService,
+    private readonly limiter: MessageRateLimiter,
   ) {}
 
   /**
@@ -123,6 +125,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   handleDisconnect(client: ChatSocket): void {
+    // Se olvida el cubo de fichas de este socket: sin esto el mapa crecería con
+    // cada conexión que pasara por el servidor y no se vaciaría nunca.
+    this.limiter.forget(client.id);
     this.logger.debug(`Desconectado ${client.data.userId ?? "(sin identificar)"}`);
   }
 
@@ -193,6 +198,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         "VALIDATION_FAILED",
         parsed.error.issues[0]?.message ?? "Mensaje inválido",
       );
+    }
+
+    // El límite se comprueba antes de tocar la base: el coste de un envío es
+    // una escritura, y de eso protege esto. `RATE_LIMITED` ya estaba en el
+    // contrato compartido esperando a que alguien lo usara.
+    if (!this.limiter.allow(client.id)) {
+      return ackError("RATE_LIMITED", "Vas demasiado rápido. Espera unos segundos.");
     }
 
     const { roomId, body, clientId } = parsed.data;

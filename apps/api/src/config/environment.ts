@@ -22,6 +22,19 @@ const schema = z.object({
    */
   WEB_ORIGIN: z.url().default("http://localhost:3000"),
 
+  /**
+   * Cuántos proxies hay delante del API.
+   *
+   * Gobierna de dónde sale la IP del cliente, y con ella el limitador de
+   * intentos. El valor por defecto es 1 porque cualquier despliegue real está
+   * detrás del balanceador de su plataforma; en local no hay proxy, no llega
+   * la cabecera y da igual.
+   *
+   * Ponerlo a 0 sólo tiene sentido con el API expuesta directamente a
+   * internet, sin nada delante.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
+
   /** Lo devuelve /healthz. Útil para saber qué versión respondió. */
   APP_VERSION: z.string().default("dev"),
 

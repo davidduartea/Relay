@@ -11,6 +11,7 @@ import { MessagesService } from "../messages/messages.service";
 import { RoomsService } from "../rooms/rooms.service";
 import { SocketTicketService } from "../auth/socket-ticket.service";
 import { ChatGateway } from "./chat.gateway";
+import { MessageRateLimiter } from "./message-rate-limiter";
 
 const ENV: Record<string, string> = {
   JWT_ACCESS_SECRET: "a".repeat(32),
@@ -105,6 +106,7 @@ describe("ChatGateway (integración)", () => {
         MessagesService,
         RoomsService,
         SocketTicketService,
+        MessageRateLimiter,
         JwtService,
         ConfigService,
       ],

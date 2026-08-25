@@ -4,6 +4,8 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 
+import type { NestExpressApplication } from "@nestjs/platform-express";
+
 import { AppModule } from "./app.module";
 import {
   assertProductionConfig,
@@ -16,7 +18,28 @@ async function bootstrap(): Promise<void> {
   // aquí, con un mensaje claro, y no en la primera petición que firme un token.
   const env = assertProductionConfig(assertSecretsDiffer(loadEnvironment()));
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  /**
+   * Cuántos proxies hay delante.
+   *
+   * Sin esto, `req.ip` es la dirección de quien abrió la conexión TCP — que
+   * desplegado es **siempre el balanceador de la plataforma**, la misma para
+   * todo el mundo. El limitador de intentos deja de ser por cliente y pasa a
+   * ser global: cinco fallos de acceso de cualquiera, y nadie más puede entrar
+   * durante un minuto. Un ataque de denegación de servicio de cinco peticiones.
+   *
+   * Con el valor puesto, Express toma la IP real de `X-Forwarded-For`.
+   *
+   * Es un número y no `true` a propósito. `true` confía en la cabecera entera,
+   * y quien alcance el servicio directamente puede inventarse una IP distinta
+   * en cada petición y saltarse el límite. Un número dice cuántos saltos de
+   * confianza hay: 1 es lo correcto detrás de Railway, Fly, Render o Vercel,
+   * que terminan TLS y reenvían una sola vez.
+   *
+   * 📖 https://expressjs.com/en/guide/behind-proxies.html
+   */
+  app.set("trust proxy", env.TRUST_PROXY_HOPS);
 
   /**
    * Cabeceras de seguridad.
