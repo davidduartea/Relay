@@ -77,15 +77,17 @@ un servicio siempre encendido, pero no para dos.
 
 1. **supabase.com** → **New Project**. Guarda la contraseña que te pide: se
    enseña una sola vez y va dentro de las cadenas de conexión.
-2. Elige la región más cercana a donde vayas a poner el API.
+2. Elige la región. **Apúntala**: el servicio de Render tiene que ir en la
+   misma, o cada consulta cruza medio mundo. `render.yaml` está en `ohio`, que
+   corresponde a `us-east-2` de Supabase.
 3. **Project Settings** → **Database** → **Connection string**. Verás **tres**
    y la diferencia importa:
 
 | Cadena                 | Puerto | Para qué                                        |
 | ---------------------- | ------ | ----------------------------------------------- |
 | **Transaction pooler** | `6543` | `DATABASE_URL` — las consultas de la aplicación |
-| **Session pooler**     | `5432` | alternativa por IPv4 (ver más abajo)            |
-| **Direct connection**  | `5432` | `DIRECT_URL` — las migraciones de Prisma        |
+| **Session pooler**     | `5432` | `DIRECT_URL` — las migraciones de Prisma        |
+| **Direct connection**  | `5432` | **no la uses aquí** — sólo IPv6, ver más abajo  |
 
 A la de transacción hay que **añadirle `?pgbouncer=true`**:
 
@@ -107,15 +109,26 @@ migra al arrancar, así que con una sola URL no levantaría.
 **Es el fallo más común de esta combinación**: poner la del pooler en las dos
 variables. Arranca, consulta bien, y muere en la migración.
 
-### Si la conexión directa no responde
+### La conexión directa NO funciona en Render
 
-Supabase sirve la conexión directa **sólo por IPv6** en el plan gratuito; el
-IPv4 es un extra de pago. Si el contenedor no tiene ruta IPv6, la migración
-falla con un error de red — no de permisos.
+No es un «por si acaso»: **Render no tiene salida IPv6** y la conexión directa
+de Supabase — `db.REF.supabase.co` — resuelve **sólo a IPv6**. La migración
+falla con «Network is unreachable», un error que parece de credenciales y no lo
+es. El IPv4 dedicado es un extra de pago.
 
-La salida sin pagar: usar el **session pooler** (puerto 5432) como `DIRECT_URL`.
-En modo sesión cada cliente mantiene su conexión al servidor durante toda la
-sesión, así que sí admite DDL y sentencias preparadas, y llega por IPv4.
+Así que `DIRECT_URL` va con el **session pooler**, no con la directa:
+
+|                | Host                     | Puerto | Parámetro         |
+| -------------- | ------------------------ | ------ | ----------------- |
+| `DATABASE_URL` | `...pooler.supabase.com` | `6543` | `?pgbouncer=true` |
+| `DIRECT_URL`   | `...pooler.supabase.com` | `5432` | ninguno           |
+
+Mismo host, distinto puerto. El de 5432 es el modo sesión: mantiene la conexión
+durante toda la sesión, así que admite las sentencias DDL de las migraciones — y
+llega por IPv4.
+
+La conexión directa (`db.REF.supabase.co:5432`) sólo sirve desde una red con
+IPv6. Aquí no la uses.
 
 ### Lo que hay que saber del plan gratuito
 
@@ -172,14 +185,14 @@ contexto en `.` y la comprobación de salud en `/healthz`.
 
 ### Variables
 
-| Variable             | Valor                                                                   |
-| -------------------- | ----------------------------------------------------------------------- |
-| `NODE_ENV`           | `production`                                                            |
-| `DATABASE_URL`       | transaction pooler de Supabase (6543) **con `?pgbouncer=true`**         |
-| `DIRECT_URL`         | conexión directa de Supabase (5432), o el session pooler si no hay IPv6 |
-| `JWT_ACCESS_SECRET`  | 32+ caracteres aleatorios                                               |
-| `JWT_REFRESH_SECRET` | otros 32+, **distintos**                                                |
-| `WEB_ORIGIN`         | provisional; se corrige en el paso 4                                    |
+| Variable             | Valor                                                           |
+| -------------------- | --------------------------------------------------------------- |
+| `NODE_ENV`           | `production`                                                    |
+| `DATABASE_URL`       | transaction pooler de Supabase (6543) **con `?pgbouncer=true`** |
+| `DIRECT_URL`         | **session pooler** de Supabase (5432), sin parámetros           |
+| `JWT_ACCESS_SECRET`  | 32+ caracteres aleatorios                                       |
+| `JWT_REFRESH_SECRET` | otros 32+, **distintos**                                        |
+| `WEB_ORIGIN`         | provisional; se corrige en el paso 4                            |
 
 Para generar los secretos, dos veces:
 
@@ -250,7 +263,7 @@ curl -X POST https://TU-SERVICIO.onrender.com/rooms \
 | «Sin conexión. Reintentando…»       | `API_URL` distinto entre build y runtime: lo bloquea la CSP                         |
 | El contenedor no arranca            | Los logs nombran la variable que falta                                              |
 | Error de DDL al migrar              | `DIRECT_URL` apunta al pooler de transacción (6543) en vez de a la conexión directa |
-| La migración no llega a la base     | Conexión directa sólo por IPv6. Usa el session pooler (5432) como `DIRECT_URL`      |
+| «Network is unreachable» al migrar  | Pusiste la conexión directa. Render no tiene IPv6: usa el session pooler (5432)     |
 | «prepared statement already exists» | Falta `?pgbouncer=true` en `DATABASE_URL`                                           |
 | Todo dejó de responder de golpe     | Supabase pausó el proyecto por inactividad. Restaurar desde el panel                |
 | La primera visita tarda             | Render estaba dormido. Es el precio del plan gratuito                               |
