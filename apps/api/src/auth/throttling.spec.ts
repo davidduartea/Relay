@@ -37,6 +37,16 @@ class FakeRoomsController {
   }
 }
 
+/** Misma forma que el HealthController real: exento de los dos limitadores. */
+@SkipThrottle({ [THROTTLE_DEFAULT]: true, [THROTTLE_AUTH]: true })
+@Controller("healthz")
+class FakeHealthController {
+  @Get()
+  check() {
+    return { status: "ok" };
+  }
+}
+
 /**
  * El límite de peticiones, comprobado contra una app de Nest real.
  *
@@ -58,7 +68,7 @@ describe("límite de peticiones", () => {
           ],
         }),
       ],
-      controllers: [FakeAuthController, FakeRoomsController],
+      controllers: [FakeAuthController, FakeRoomsController, FakeHealthController],
       providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
     }).compile();
 
@@ -95,5 +105,19 @@ describe("límite de peticiones", () => {
     // Los dos límites son independientes: quedarse sin intentos de login no
     // puede dejar al usuario sin poder leer las salas.
     await request(app.getHttpServer()).get("/rooms").expect(200);
+  });
+
+  it("nunca limita la comprobación de salud", async () => {
+    // REGRESIÓN: /healthz existía sin exención, y en Render lo tumbó. El
+    // orquestador lo sondea cada pocos segundos; al agotar el cupo recibía un
+    // 429, daba la instancia por caída y reintentaba más fuerte — con lo que
+    // llegaban más 429. En los logs de la aplicación no quedaba ni rastro,
+    // porque el proceso nunca llegaba a fallar.
+    //
+    // Se piden muchas más que cualquiera de los dos límites: si alguien quita
+    // el SkipThrottle, esto se pone rojo aquí y no en producción.
+    for (let attempt = 0; attempt < 150; attempt++) {
+      await request(app.getHttpServer()).get("/healthz").expect(200);
+    }
   });
 });

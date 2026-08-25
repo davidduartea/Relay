@@ -6,10 +6,12 @@ name: Keep alive
 # minuto en volver. Supabase pausa el proyecto entero tras una semana sin
 # actividad y ése no vuelve solo: hay que restaurarlo a mano desde su panel.
 #
-# Una petición a /healthz resuelve las dos cosas — el endpoint consulta la base,
-# así que cada llamada reinicia también la cuenta atrás de Supabase.
+# Se llama a **/rooms**, no a /healthz. La comprobación de salud está hecha a
+# propósito para no tocar la base — así una degradación de Postgres no provoca
+# reinicios del contenedor —, de modo que despertaría a Render y dejaría que
+# Supabase se durmiera igual. `/rooms` sí consulta, es público y no cambia nada.
 #
-# Sólo hace algo si existe la variable `API_HEALTH_URL`. En un repositorio sin
+# Sólo hace algo si existe la variable `API_KEEPALIVE_URL`. En un repositorio sin
 # desplegar, o desplegado en Railway, el job termina sin tocar nada.
 
 on:
@@ -35,14 +37,14 @@ jobs:
       - name: Comprobar que hay una URL configurada
         id: check
         run: |
-          if [ -z "${{ vars.API_HEALTH_URL }}" ]; then
-            echo "Sin API_HEALTH_URL: no hay nada desplegado que mantener despierto."
+          if [ -z "${{ vars.API_KEEPALIVE_URL }}" ]; then
+            echo "Sin API_KEEPALIVE_URL: no hay nada desplegado que mantener despierto."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Llamar a /healthz
+      - name: Llamar al API
         if: steps.check.outputs.configured == 'true'
         run: |
           # --max-time 90 porque un servicio dormido tarda cerca de un minuto
@@ -52,5 +54,5 @@ jobs:
           # frío puede cortarse antes de que termine de arrancar.
           curl --fail --silent --show-error \
                --max-time 90 --retry 2 --retry-delay 30 \
-               "${{ vars.API_HEALTH_URL }}"
+               "${{ vars.API_KEEPALIVE_URL }}"
           echo

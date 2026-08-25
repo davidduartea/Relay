@@ -50,9 +50,12 @@ pausó el proyecto, no funciona en absoluto.
 
 ### Mantenerlos despiertos
 
-Un cron gratuito en GitHub Actions que llame a `/healthz` cada diez minutos
-resuelve las dos: mantiene vivo a Render y, como cada petición consulta la base,
-también reinicia la cuenta atrás de Supabase.
+Un cron gratuito en GitHub Actions cada diez minutos resuelve las dos.
+
+Llama a **`/rooms`, no a `/healthz`**: la comprobación de salud está hecha a
+propósito para no tocar la base — así un hipo de Postgres no reinicia el
+contenedor —, de modo que despertaría a Render y dejaría que Supabase se
+durmiera igual. `/rooms` sí consulta, es público y no modifica nada.
 
 Está en [`.github/workflows/keep-alive.yml`](../.github/workflows/keep-alive.yml).
 Sólo hay que darle la URL:
@@ -60,9 +63,9 @@ Sólo hay que darle la URL:
 **Settings** → **Secrets and variables** → **Actions** → **Variables** →
 **New repository variable**:
 
-| Nombre           | Valor                                      |
-| ---------------- | ------------------------------------------ |
-| `API_HEALTH_URL` | `https://TU-SERVICIO.onrender.com/healthz` |
+| Nombre              | Valor                                    |
+| ------------------- | ---------------------------------------- |
+| `API_KEEPALIVE_URL` | `https://TU-SERVICIO.onrender.com/rooms` |
 
 Va como _variable_ y no como _secret_: es una URL pública, y así se ve en los
 registros de ejecución si algo falla.
