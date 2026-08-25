@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { alertIn, login, makeUser, register, waitUntilConnected } from "./support";
+import { alertIn, login, makeUser, register, signOut, waitUntilConnected } from "./support";
 
 test.describe("autenticación", () => {
   test("registrarse deja dentro del chat", async ({ page }) => {
@@ -23,7 +23,7 @@ test.describe("autenticación", () => {
     const user = makeUser("salida");
     await register(page, user);
 
-    await page.getByRole("button", { name: "Salir" }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/login$/);
 
     // Volver atrás no debe recuperar la sesión: el token ya no está guardado.
@@ -34,7 +34,7 @@ test.describe("autenticación", () => {
   test("se puede volver a entrar con las mismas credenciales", async ({ page }) => {
     const user = makeUser("recurrente");
     await register(page, user);
-    await page.getByRole("button", { name: "Salir" }).click();
+    await signOut(page);
     await expect(page).toHaveURL(/\/login$/);
 
     await login(page, user);
@@ -66,7 +66,7 @@ test.describe("autenticación", () => {
   test("el correo repetido lo rechaza el servidor", async ({ page }) => {
     const user = makeUser("duplicado");
     await register(page, user);
-    await page.getByRole("button", { name: "Salir" }).click();
+    await signOut(page);
 
     await page.goto("/register");
     await page.getByLabel("Correo").fill(user.email);
@@ -83,7 +83,7 @@ test.describe("autenticación", () => {
     // Un mensaje distinto por caso le diría a un atacante qué correos existen.
     const user = makeUser("oraculo");
     await register(page, user);
-    await page.getByRole("button", { name: "Salir" }).click();
+    await signOut(page);
 
     await page.goto("/login");
     await page.getByLabel("Correo").fill(user.email);

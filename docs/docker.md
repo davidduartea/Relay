@@ -10,11 +10,11 @@ Cada apartado enlaza al archivo y la línea, y a la documentación oficial.
 
 📖 [Docker overview](https://docs.docker.com/get-started/docker-overview/)
 
-| | Qué es |
-| --- | --- |
-| **Imagen** | Una plantilla congelada: sistema de archivos completo con Node, el código y las dependencias. No se ejecuta |
-| **Contenedor** | Una imagen en ejecución. De una imagen salen tantos contenedores como se quieran, aislados entre sí |
-| **Dockerfile** | La receta para construir la imagen |
+|                | Qué es                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Imagen**     | Una plantilla congelada: sistema de archivos completo con Node, el código y las dependencias. No se ejecuta |
+| **Contenedor** | Una imagen en ejecución. De una imagen salen tantos contenedores como se quieran, aislados entre sí         |
+| **Dockerfile** | La receta para construir la imagen                                                                          |
 
 ```
 Dockerfile  ──build──▶  Imagen  ──run──▶  Contenedor
@@ -44,11 +44,11 @@ Las dos imágenes usan `deps` → `build` → `runner`. **Sólo la última acaba
 
 Es lo que mantiene fuera el compilador de TypeScript, el CLI de Nest y las dependencias de desarrollo.
 
-| Etapa | Qué hace |
-| --- | --- |
-| `deps` | Instala dependencias a partir de los manifiestos |
-| `build` | Compila `shared`, genera Prisma, construye la aplicación |
-| `runner` | Copia lo compilado con `COPY --from=build` y nada más |
+| Etapa    | Qué hace                                                 |
+| -------- | -------------------------------------------------------- |
+| `deps`   | Instala dependencias a partir de los manifiestos         |
+| `build`  | Compila `shared`, genera Prisma, construye la aplicación |
+| `runner` | Copia lo compilado con `COPY --from=build` y nada más    |
 
 ### Detalles de la etapa `deps`
 
@@ -130,7 +130,7 @@ La ruta se calcula con `basename` en lugar de escribirla: lleva la versión dent
 
 [`apps/web/Dockerfile:99`](../apps/web/Dockerfile)
 
-Sin esto el contenedor arranca, los logs no dicen nada y desde fuera no responde. Next escucha en `localhost` por defecto, que dentro del contenedor significa *sólo yo*.
+Sin esto el contenedor arranca, los logs no dicen nada y desde fuera no responde. Next escucha en `localhost` por defecto, que dentro del contenedor significa _sólo yo_.
 
 ---
 
@@ -159,7 +159,7 @@ Es `ENTRYPOINT` y no `CMD` porque el script debe correr **siempre**: `CMD` se pu
 Dentro:
 
 - **`set -e`** aborta al primer error. Si la migración falla, el contenedor no arranca — deliberado: una API hablando con un esquema que no le corresponde falla de formas mucho más difíciles de diagnosticar.
-- **`migrate deploy`** sólo aplica migraciones ya existentes, nunca genera ni borra. Prisma toma un *advisory lock* de Postgres, así que varias réplicas arrancando a la vez no se pisan.
+- **`migrate deploy`** sólo aplica migraciones ya existentes, nunca genera ni borra. Prisma toma un _advisory lock_ de Postgres, así que varias réplicas arrancando a la vez no se pisan.
 - **`exec`** sustituye el proceso del shell por Node en vez de crear un hijo. Así Node es el PID 1 y recibe directamente el `SIGTERM`; sin `exec`, la señal se la queda el shell y Node muere de golpe sin cerrar conexiones.
 
 📖 [prisma migrate deploy](https://www.prisma.io/docs/orm/prisma-migrate/workflows/production-and-testing)
@@ -236,7 +236,11 @@ depends_on:
 
 [`docker-compose.yml:62`](../docker-compose.yml) · 📖 [Next · env vars](https://nextjs.org/docs/app/guides/environment-variables)
 
-`NEXT_PUBLIC_API_URL` va como **argumento de build**, no como variable de entorno: las `NEXT_PUBLIC_*` se resuelven al compilar. Cambiar de entorno exige reconstruir la imagen — es la contrapartida de que el navegador pueda leerlas.
+`API_URL` va como **argumento de build** además de como variable de entorno, y no por lo que suele ser: no lleva prefijo `NEXT_PUBLIC_`, así que Next no la incrusta en el JavaScript. La necesita el build porque la CSP se genera al compilar y su `connect-src` tiene que listar el origen del socket.
+
+Los dos valores tienen que coincidir. Si no, el contenedor levanta, el chat se pinta entero y la conexión se queda en «Sin conexión. Reintentando…»: la bloquea la CSP, en silencio.
+
+`API_INTERNAL_URL` es la otra mitad dentro de compose: el navegador alcanza al API por el puerto publicado y el contenedor de Next por el nombre del servicio (`http://api:4000`). Sin ella, el servidor saldría por la dirección pública para hablar con un vecino de red.
 
 ---
 
@@ -252,10 +256,10 @@ Y lo crítico: **los `.env` nunca deben entrar**. Quedan en el historial de capa
 
 ## Tamaños
 
-| Imagen | Tamaño |
-| --- | --- |
-| `relay-web` | 289 MB |
-| `relay-api` | 658 MB |
+| Imagen               | Tamaño |
+| -------------------- | ------ |
+| `relay-web`          | 289 MB |
+| `relay-api`          | 658 MB |
 | `postgres:17-alpine` | 423 MB |
 
 Verificado con la pila corriendo: registro contra la API, cabeceras de seguridad en la web y el límite de peticiones devolviendo 429 al sexto intento.

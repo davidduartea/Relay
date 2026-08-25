@@ -2,7 +2,6 @@ import { IBM_Plex_Sans, Jost } from "next/font/google";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { SessionProvider } from "@/modules/auth/SessionProvider";
 import "./globals.css";
 
 /**
@@ -47,7 +46,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Saltar al contenido
         </a>
-        <SessionProvider>{children}</SessionProvider>
+        {children}
       </body>
     </html>
   );

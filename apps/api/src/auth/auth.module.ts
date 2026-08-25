@@ -6,6 +6,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { SocketTicketService } from "./socket-ticket.service";
 
 /**
  * Autenticación.
@@ -25,11 +26,12 @@ import { JwtAuthGuard } from "./jwt-auth.guard";
   controllers: [AuthController],
   providers: [
     AuthService,
+    SocketTicketService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService],
+  exports: [AuthService, SocketTicketService],
 })
 export class AuthModule {}

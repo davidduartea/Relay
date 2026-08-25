@@ -79,12 +79,20 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        # Se pasa como argumento de build y no como variable de entorno porque
-        # las NEXT_PUBLIC_* se incrustan en el bundle al compilar: cambiarlas
-        # exige reconstruir la imagen.
-        NEXT_PUBLIC_API_URL: http://localhost:4000
+        # También como argumento de build: la CSP se genera al compilar y su
+        # `connect-src` tiene que listar el origen del socket. Este valor y el
+        # del entorno tienen que coincidir, o el navegador bloquea la conexión
+        # sin decir nada.
+        API_URL: http://localhost:4000
     container_name: relay-web
     restart: unless-stopped
+    environment:
+      # La dirección que se le entrega al navegador para abrir el socket: la
+      # que él alcanza, es decir el puerto publicado en la máquina anfitriona.
+      API_URL: http://localhost:4000
+      # La que usa el servidor de Next para hablar con el API. Comparten red,
+      # así que va por el nombre del servicio en vez de salir y volver.
+      API_INTERNAL_URL: http://api:4000
     ports:
       - "3000:3000"
     depends_on:

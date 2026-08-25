@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
-import { JwtModule } from "@nestjs/jwt";
 
+import { AuthModule } from "../auth/auth.module";
 import { MessagesModule } from "../messages/messages.module";
 import { RoomsModule } from "../rooms/rooms.module";
 import { ChatGateway } from "./chat.gateway";
@@ -14,7 +14,10 @@ import { ChatGateway } from "./chat.gateway";
  * valga la pena frente a una carpeta.
  */
 @Module({
-  imports: [RoomsModule, MessagesModule, JwtModule.register({})],
+  // `AuthModule` por `SocketTicketService`: el handshake canjea el ticket que
+  // emite el endpoint de auth, así que el mismo almacén de `jti` gastados tiene
+  // que servir a los dos lados.
+  imports: [RoomsModule, MessagesModule, AuthModule],
   providers: [ChatGateway],
 })
 export class ChatModule {}

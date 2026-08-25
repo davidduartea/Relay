@@ -10,28 +10,28 @@ Cada apartado enlaza al archivo y la línea concretos, y a la documentación ofi
 
 Auditoría contra un checklist de prelanzamiento habitual.
 
-| Punto | Estado | Dónde |
-| --- | --- | --- |
-| Ocultar API keys y secretos | ✅ | [`config/environment.ts`](../apps/api/src/config/environment.ts) |
-| Sin secretos en el historial de git | ✅ | Verificado: ningún `.env` real se subió nunca |
-| Base de datos no expuesta | ✅ | [`docker-compose.yml`](../docker-compose.yml) — sólo `localhost` |
-| Autenticación en servidor | ✅ | [`auth/jwt-auth.guard.ts`](../apps/api/src/auth/jwt-auth.guard.ts) |
-| Control de acceso por registro | ✅ | [`chat/chat.gateway.ts`](../apps/api/src/chat/chat.gateway.ts) |
-| Bloquear manipulación de campos | ✅ | El autor sale del token, nunca del payload |
-| Hashear contraseñas | ✅ | [`auth/auth.service.ts`](../apps/api/src/auth/auth.service.ts) — argon2id |
-| Limitar intentos de login | ✅ | [`config/throttling.ts`](../apps/api/src/config/throttling.ts) |
-| Parametrizar consultas SQL | ✅ | Sin `$queryRaw`; todo por el query builder de Prisma |
-| Validar todas las entradas | ✅ | Zod compartido entre backend y frontend |
-| Escapar contenido de usuario | ✅ | Sin `dangerouslySetInnerHTML`; React escapa por defecto |
-| Recortar respuestas de API | ✅ | Listas blancas de columnas (`SHAPE`, `USER_SHAPE`) |
-| Cabeceras de seguridad | ✅ | [`main.ts`](../apps/api/src/main.ts) · [`next.config.ts`](../apps/web/next.config.ts) |
-| Forzar HTTPS | ✅ | HSTS en ambos, sólo en producción |
-| Escanear dependencias | ✅ | Job `audit` en [`ci.yml`](../.github/workflows/ci.yml) |
-| Subida de archivos segura | — | No existe la funcionalidad |
-| Cifrado de datos sensibles | — | No se almacena nada que lo requiera |
-| Row Level Security | — | El cliente nunca toca la base; la autorización vive en Nest |
-| Protección antibots | ❌ | Pendiente — el registro es abierto |
-| Cookies de sesión httpOnly | ⚠️ | Decisión consciente, ver [Sesión](#sesión-y-tokens) |
+| Punto                               | Estado | Dónde                                                                                 |
+| ----------------------------------- | ------ | ------------------------------------------------------------------------------------- |
+| Ocultar API keys y secretos         | ✅     | [`config/environment.ts`](../apps/api/src/config/environment.ts)                      |
+| Sin secretos en el historial de git | ✅     | Verificado: ningún `.env` real se subió nunca                                         |
+| Base de datos no expuesta           | ✅     | [`docker-compose.yml`](../docker-compose.yml) — sólo `localhost`                      |
+| Autenticación en servidor           | ✅     | [`auth/jwt-auth.guard.ts`](../apps/api/src/auth/jwt-auth.guard.ts)                    |
+| Control de acceso por registro      | ✅     | [`chat/chat.gateway.ts`](../apps/api/src/chat/chat.gateway.ts)                        |
+| Bloquear manipulación de campos     | ✅     | El autor sale del token, nunca del payload                                            |
+| Hashear contraseñas                 | ✅     | [`auth/auth.service.ts`](../apps/api/src/auth/auth.service.ts) — argon2id             |
+| Limitar intentos de login           | ✅     | [`config/throttling.ts`](../apps/api/src/config/throttling.ts)                        |
+| Parametrizar consultas SQL          | ✅     | Sin `$queryRaw`; todo por el query builder de Prisma                                  |
+| Validar todas las entradas          | ✅     | Zod compartido entre backend y frontend                                               |
+| Escapar contenido de usuario        | ✅     | Sin `dangerouslySetInnerHTML`; React escapa por defecto                               |
+| Recortar respuestas de API          | ✅     | Listas blancas de columnas (`SHAPE`, `USER_SHAPE`)                                    |
+| Cabeceras de seguridad              | ✅     | [`main.ts`](../apps/api/src/main.ts) · [`next.config.ts`](../apps/web/next.config.ts) |
+| Forzar HTTPS                        | ✅     | HSTS en ambos, sólo en producción                                                     |
+| Escanear dependencias               | ✅     | Job `audit` en [`ci.yml`](../.github/workflows/ci.yml)                                |
+| Subida de archivos segura           | —      | No existe la funcionalidad                                                            |
+| Cifrado de datos sensibles          | —      | No se almacena nada que lo requiera                                                   |
+| Row Level Security                  | —      | El cliente nunca toca la base; la autorización vive en Nest                           |
+| Protección antibots                 | ❌     | Pendiente — el registro es abierto                                                    |
+| Cookies de sesión httpOnly          | ⚠️     | Decisión consciente, ver [Sesión](#sesión-y-tokens)                                   |
 
 ---
 
@@ -45,14 +45,14 @@ Auditoría contra un checklist de prelanzamiento habitual.
 
 De las 15 cabeceras que pone por defecto se cambiaron tres:
 
-| Opción | Línea | Decisión |
-| --- | --- | --- |
-| `contentSecurityPolicy: false` | `main.ts:30` | La CSP protege HTML. Este servicio sólo devuelve JSON — nadie ejecuta scripts desde `/rooms`. Vive en la web, donde sí sirve |
-| `crossOriginResourcePolicy: "cross-origin"` | `main.ts:31` | El valor por defecto (`same-origin`) bloquearía al front, que está en otro puerto |
-| `frameguard: "deny"` | `main.ts:41` | helmet pone `SAMEORIGIN`; un API no se empotra en ningún sitio |
-| `hsts` | `main.ts:37` | Sólo en producción, ver abajo |
+| Opción                                      | Línea        | Decisión                                                                                                                     |
+| ------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `contentSecurityPolicy: false`              | `main.ts:30` | La CSP protege HTML. Este servicio sólo devuelve JSON — nadie ejecuta scripts desde `/rooms`. Vive en la web, donde sí sirve |
+| `crossOriginResourcePolicy: "cross-origin"` | `main.ts:31` | El valor por defecto (`same-origin`) bloquearía al front, que está en otro puerto                                            |
+| `frameguard: "deny"`                        | `main.ts:41` | helmet pone `SAMEORIGIN`; un API no se empotra en ningún sitio                                                               |
+| `hsts`                                      | `main.ts:37` | Sólo en producción, ver abajo                                                                                                |
 
-**CORP no es CORS.** CORS decide si JavaScript puede *leer* la respuesta; CORP, si otro sitio puede *incrustar* el recurso. Quién puede llamar lo controla CORS en `main.ts:51`.
+**CORP no es CORS.** CORS decide si JavaScript puede _leer_ la respuesta; CORP, si otro sitio puede _incrustar_ el recurso. Quién puede llamar lo controla CORS en `main.ts:51`.
 📖 [MDN · CORP](https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy)
 
 Cabeceras que helmet pone y no se tocaron: `X-Content-Type-Options`, `Cross-Origin-Opener-Policy`, `Referrer-Policy`, `X-XSS-Protection: 0` (desactiva un filtro antiguo de IE que introducía sus propios fallos), `Origin-Agent-Cluster`.
@@ -63,16 +63,16 @@ Cabeceras que helmet pone y no se tocaron: `X-Content-Type-Options`, `Cross-Orig
 
 Construida en [`next.config.ts:24`](../apps/web/next.config.ts). Es la cabecera más importante del proyecto **porque la sesión vive en `localStorage`**: la CSP es lo que impide que un script inyectado llegue a ejecutarse y leerla.
 
-| Línea | Directiva | Qué controla |
-| --- | --- | --- |
-| `:28` | `default-src 'self'` | Regla base: todo desde el propio dominio |
-| `:29` | `script-src 'self' 'unsafe-inline'` | JavaScript — ver concesiones |
-| `:30` | `style-src 'self' 'unsafe-inline'` | CSS: Tailwind y React inyectan estilos en línea |
-| `:33` | `connect-src 'self' <api> <ws>` | `fetch`, XHR y **WebSocket** |
-| `:36` | `frame-ancestors 'none'` | Clickjacking; versión moderna de `X-Frame-Options` |
-| `:38` | `object-src 'none'` | Plugins |
-| `:39` | `base-uri 'self'` | Impide inyectar `<base>` y desviar rutas relativas |
-| `:41` | `form-action 'self'` | Un form inyectado no puede enviar a otro dominio |
+| Línea | Directiva                           | Qué controla                                       |
+| ----- | ----------------------------------- | -------------------------------------------------- |
+| `:28` | `default-src 'self'`                | Regla base: todo desde el propio dominio           |
+| `:29` | `script-src 'self' 'unsafe-inline'` | JavaScript — ver concesiones                       |
+| `:30` | `style-src 'self' 'unsafe-inline'`  | CSS: Tailwind y React inyectan estilos en línea    |
+| `:33` | `connect-src 'self' <api> <ws>`     | `fetch`, XHR y **WebSocket**                       |
+| `:36` | `frame-ancestors 'none'`            | Clickjacking; versión moderna de `X-Frame-Options` |
+| `:38` | `object-src 'none'`                 | Plugins                                            |
+| `:39` | `base-uri 'self'`                   | Impide inyectar `<base>` y desviar rutas relativas |
+| `:41` | `form-action 'self'`                | Un form inyectado no puede enviar a otro dominio   |
 
 **Dos concesiones deliberadas:**
 
@@ -81,7 +81,7 @@ Construida en [`next.config.ts:24`](../apps/web/next.config.ts). Es la cabecera 
 
 **`connect-src` debe incluir el esquema `ws:`** o el chat se bloquea en silencio: la conexión ni se intenta y no hay error obvio. Es la línea más fácil de olvidar.
 
-Además: `Permissions-Policy` en `:52` niega cámara, micrófono, geolocalización y pagos con paréntesis vacíos — *nadie, ni siquiera nosotros*. Y `poweredByHeader: false` en `:81` deja de anunciar el framework y su versión.
+Además: `Permissions-Policy` en `:52` niega cámara, micrófono, geolocalización y pagos con paréntesis vacíos — _nadie, ni siquiera nosotros_. Y `poweredByHeader: false` en `:81` deja de anunciar el framework y su versión.
 📖 [MDN · Permissions-Policy](https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy)
 
 ### HSTS
@@ -112,10 +112,10 @@ El origen sale de `env.WEB_ORIGIN`, ya validado por Zod.
 
 [`config/throttling.ts:21`](../apps/api/src/config/throttling.ts)
 
-| Throttler | Ventana | Límite | Por qué |
-| --- | --- | --- | --- |
-| `default` | 1 min | 120 | Lecturas normales |
-| `auth` | 1 min | 5 | Cada petición es **una contraseña probada** |
+| Throttler | Ventana | Límite | Por qué                                     |
+| --------- | ------- | ------ | ------------------------------------------- |
+| `default` | 1 min   | 120    | Lecturas normales                           |
+| `auth`    | 1 min   | 5      | Cada petición es **una contraseña probada** |
 
 Son **independientes**: quedarse sin intentos de login no puede dejar al usuario sin poder leer las salas.
 
@@ -223,7 +223,7 @@ Por la misma razón que la contraseña: quien lea la base de datos no debe poder
 
 [`auth/jwt-auth.guard.ts`](../apps/api/src/auth/jwt-auth.guard.ts)
 
-Toda ruta está protegida por defecto; las abiertas se marcan con `@Public()`. La dirección importa: una lista blanca de rutas *privadas* se olvida en cuanto alguien añade un endpoint, mientras que una de rutas *públicas* **falla hacia el lado seguro**.
+Toda ruta está protegida por defecto; las abiertas se marcan con `@Public()`. La dirección importa: una lista blanca de rutas _privadas_ se olvida en cuanto alguien añade un endpoint, mientras que una de rutas _públicas_ **falla hacia el lado seguro**.
 
 ### El WebSocket autentica en el handshake
 
@@ -284,7 +284,7 @@ Lo que sí se hace mientras tanto:
 La política vive en [`pnpm-workspace.yaml`](../pnpm-workspace.yaml).
 
 - **Deny-by-default en scripts de instalación.** Un paquete comprometido normalmente entrega su payload desde un `postinstall`
-- **`strictDepBuilds`** hace que la instalación *falle*, no que avise, ante una dependencia con scripts sin revisar
+- **`strictDepBuilds`** hace que la instalación _falle_, no que avise, ante una dependencia con scripts sin revisar
 - **`minimumReleaseAge: 1440`** rechaza versiones publicadas hace menos de 24 horas; la mayoría de los paquetes comprometidos se retiran del registro en horas
 - **`--frozen-lockfile` en CI**, para que el pipeline falle si el lockfile no corresponde al `package.json`
 - **Job `audit`** en cada push, con nivel `moderate` en adelante
@@ -295,9 +295,9 @@ La política ya se ganó el sueldo dos veces: bloqueó la instalación de Prisma
 
 ## Pendiente
 
-| Qué | Por qué no está |
-| --- | --- |
-| **Protección antibots** | El registro es abierto. Necesita decidir entre [Turnstile](https://developers.cloudflare.com/turnstile/) (gratis, sin fricción) y [hCaptcha](https://www.hcaptcha.com/) (más estricto) |
-| **Cookies httpOnly** | Rediseño del transporte del token, ver [Sesión](#sesión-y-tokens) |
-| **Rate limit distribuido** | El almacén en memoria no sirve con varias instancias |
-| **Cifrado en reposo** | No se almacena todavía nada que lo requiera |
+| Qué                        | Por qué no está                                                                                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Protección antibots**    | El registro es abierto. Necesita decidir entre [Turnstile](https://developers.cloudflare.com/turnstile/) (gratis, sin fricción) y [hCaptcha](https://www.hcaptcha.com/) (más estricto) |
+| **Cookies httpOnly**       | Rediseño del transporte del token, ver [Sesión](#sesión-y-tokens)                                                                                                                      |
+| **Rate limit distribuido** | El almacén en memoria no sirve con varias instancias                                                                                                                                   |
+| **Cifrado en reposo**      | No se almacena todavía nada que lo requiera                                                                                                                                            |
