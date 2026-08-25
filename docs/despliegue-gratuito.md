@@ -2,11 +2,11 @@
 
 Tres servicios, tres cuentas, cero euros:
 
-|                          | Dónde        | Por qué ahí                                          |
-| ------------------------ | ------------ | ---------------------------------------------------- |
-| Web (Next.js)            | **Vercel**   | Estático y SSR, que es para lo que está              |
-| API (NestJS + Socket.IO) | **Koyeb**    | Proceso con estado que no caduca en el plan gratuito |
-| Postgres                 | **Supabase** | Postgres gestionado con plan gratuito sin caducidad  |
+|                          | Dónde        | Por qué ahí                                         |
+| ------------------------ | ------------ | --------------------------------------------------- |
+| Web (Next.js)            | **Vercel**   | Estático y SSR, que es para lo que está             |
+| API (NestJS + Socket.IO) | **Render**   | Proceso con estado, construido desde el Dockerfile  |
+| Postgres                 | **Supabase** | Postgres gestionado con plan gratuito sin caducidad |
 
 La alternativa de pago está en [`despliegue.md`](./despliegue.md): Railway, 5 USD
 al mes, sin arranques en frío y con todo ya configurado.
@@ -22,8 +22,11 @@ y mantiene presencia, así que es exactamente el caso que se rompe.
 
 **Fly.io ya no tiene plan gratuito** para cuentas nuevas desde octubre de 2024.
 
-**Render duerme a los 15 minutos** y tarda cerca de un minuto en despertar, y su
-Postgres gratuito caduca a los 90 días.
+**Koyeb** tiene un plan gratuito parecido y sin caducidad, pero su construcción
+desde un monorepo da problemas. Render lleva más rodaje con Docker.
+
+El Postgres gratuito de Render caduca a los 90 días — por eso la base va en
+Supabase y no ahí.
 
 **Neon** es la otra opción para la base y se comporta mejor con la
 inactividad — suspende sólo el compute y despierta sola en milisegundos, en
@@ -34,12 +37,39 @@ más directo: mismas dos URLs, misma configuración.
 
 ## El precio de que sea gratis
 
-Koyeb escala a cero sin tráfico. **La primera visita tras un rato de silencio
-espera a que el servicio arranque.** La base responde enseguida; el arranque
-del contenedor es lo que se nota.
+Dos cosas duermen, y por motivos distintos:
 
-Si esto va enlazado desde un CV, tenlo en cuenta: quien abre el enlace y ve una
-pantalla en blanco no siempre espera.
+|              | Cuándo                    | Cuánto tarda en volver                      |
+| ------------ | ------------------------- | ------------------------------------------- |
+| **Render**   | 15 minutos sin peticiones | cerca de un minuto                          |
+| **Supabase** | una semana sin actividad  | no vuelve solo — hay que restaurarlo a mano |
+
+Para un enlace que vive en un CV, las dos importan. Quien lo abre y ve una
+pantalla en blanco durante un minuto no siempre espera; y si además Supabase
+pausó el proyecto, no funciona en absoluto.
+
+### Mantenerlos despiertos
+
+Un cron gratuito en GitHub Actions que llame a `/healthz` cada diez minutos
+resuelve las dos: mantiene vivo a Render y, como cada petición consulta la base,
+también reinicia la cuenta atrás de Supabase.
+
+Está en [`.github/workflows/keep-alive.yml`](../.github/workflows/keep-alive.yml).
+Sólo hay que darle la URL:
+
+**Settings** → **Secrets and variables** → **Actions** → **Variables** →
+**New repository variable**:
+
+| Nombre           | Valor                                      |
+| ---------------- | ------------------------------------------ |
+| `API_HEALTH_URL` | `https://TU-SERVICIO.onrender.com/healthz` |
+
+Va como _variable_ y no como _secret_: es una URL pública, y así se ve en los
+registros de ejecución si algo falla.
+
+**No es gratis del todo en tiempo de ejecución**: mantener el servicio despierto
+consume horas del plan gratuito de Render, que da 750 al mes — suficiente para
+un servicio siempre encendido, pero no para dos.
 
 ---
 
@@ -113,17 +143,32 @@ datasource db {
 
 ---
 
-## 2 · Koyeb — el API
+## 2 · Render — el API
 
-1. **koyeb.com** → cuenta con GitHub. Pide tarjeta **sólo para verificar
-   identidad**; el plan gratuito no cobra.
-2. **Create Service** → **GitHub** → `davidduartea/Relay`.
-3. Tipo de construcción: **Dockerfile**.
-   - Dockerfile: `apps/api/Dockerfile`
-   - **Build context: la raíz del repositorio** — el Dockerfile necesita el
-     lockfile y `packages/shared`, que están fuera de `apps/api`
-4. Tamaño de instancia: **Free (nano)**.
-5. Puerto: **4000**, y la comprobación de salud en **`/healthz`**.
+Hay un `render.yaml` en la raíz que ya lo describe todo, así que no hace falta
+rellenar el formulario a mano.
+
+1. **render.com** → cuenta con GitHub. El plan gratuito no pide tarjeta.
+2. **New** → **Blueprint** → `davidduartea/Relay`.
+3. Render lee `render.yaml` y propone el servicio. Sólo te pedirá las variables
+   marcadas como secretas.
+
+Lo que dice ese archivo, y por qué:
+
+```yaml
+dockerfilePath: ./apps/api/Dockerfile
+dockerContext: . # ← la raíz, no apps/api
+healthCheckPath: /healthz
+```
+
+**El contexto es la raíz del repositorio.** El Dockerfile vive en `apps/api`
+pero necesita el lockfile y `packages/shared`, que quedan fuera de esa carpeta.
+Apuntar el contexto a `apps/api` es el fallo que hace que la construcción muera
+buscando archivos que no ve.
+
+Si prefieres crearlo a mano (**New** → **Web Service**), esos tres valores son
+los que hay que poner: Docker como runtime, el Dockerfile en `apps/api/`, el
+contexto en `.` y la comprobación de salud en `/healthz`.
 
 ### Variables
 
@@ -150,7 +195,7 @@ el segundo ya vale 1 por defecto, que es lo correcto detrás de un balanceador.
 ### Comprobación
 
 ```bash
-curl https://TU-SERVICIO.koyeb.app/healthz
+curl https://TU-SERVICIO.onrender.com/healthz
 ```
 
 Las migraciones se aplican solas al arrancar. Si una falla, el contenedor no
@@ -166,7 +211,7 @@ Igual que en el despliegue de pago:
 | ------------------ | -------------------------------------------- |
 | **Root Directory** | `apps/web`                                   |
 | Build Command      | _dejar vacío_ — usa el script `vercel-build` |
-| `API_URL`          | `https://TU-SERVICIO.koyeb.app`              |
+| `API_URL`          | `https://TU-SERVICIO.onrender.com`           |
 
 `API_URL` sin prefijo `NEXT_PUBLIC_` y sin barra final. Hace falta al compilar y
 al ejecutar con el mismo valor: la CSP se genera al compilar y su `connect-src`
@@ -176,7 +221,7 @@ tiene que listar el origen del socket.
 
 ## 4 · Cerrar el círculo
 
-Vuelve a Koyeb y pon `WEB_ORIGIN` con la URL real de Vercel, sin barra final.
+Vuelve a Render y pon `WEB_ORIGIN` con la URL real de Vercel, sin barra final.
 
 Sin este paso el chat se queda en «Conectando…» para siempre: el handshake del
 socket lo rechaza CORS y el navegador no explica por qué.
@@ -189,7 +234,7 @@ El seed no corre en el despliegue. Con una cuenta creada y sesión iniciada,
 desde la propia web, o por el API:
 
 ```bash
-curl -X POST https://TU-SERVICIO.koyeb.app/rooms \
+curl -X POST https://TU-SERVICIO.onrender.com/rooms \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer TU_ACCESS_TOKEN" \
   -d '{"name":"General","slug":"general"}'
@@ -208,4 +253,4 @@ curl -X POST https://TU-SERVICIO.koyeb.app/rooms \
 | La migración no llega a la base     | Conexión directa sólo por IPv6. Usa el session pooler (5432) como `DIRECT_URL`      |
 | «prepared statement already exists» | Falta `?pgbouncer=true` en `DATABASE_URL`                                           |
 | Todo dejó de responder de golpe     | Supabase pausó el proyecto por inactividad. Restaurar desde el panel                |
-| La primera visita tarda             | Koyeb estaba dormido. Es el precio del plan gratuito                                |
+| La primera visita tarda             | Render estaba dormido. Es el precio del plan gratuito                               |

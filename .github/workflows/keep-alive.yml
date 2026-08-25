@@ -1,0 +1,56 @@
+name: Keep alive
+
+# Mantiene despiertos los dos servicios del despliegue gratuito.
+#
+# Render duerme el servicio a los 15 minutos sin peticiones y tarda cerca de un
+# minuto en volver. Supabase pausa el proyecto entero tras una semana sin
+# actividad y ése no vuelve solo: hay que restaurarlo a mano desde su panel.
+#
+# Una petición a /healthz resuelve las dos cosas — el endpoint consulta la base,
+# así que cada llamada reinicia también la cuenta atrás de Supabase.
+#
+# Sólo hace algo si existe la variable `API_HEALTH_URL`. En un repositorio sin
+# desplegar, o desplegado en Railway, el job termina sin tocar nada.
+
+on:
+  schedule:
+    # Cada diez minutos. GitHub no garantiza la puntualidad de los crones y
+    # puede retrasarlos con carga alta, así que se pide más a menudo que los 15
+    # minutos que tarda Render en dormirse.
+    - cron: "*/10 * * * *"
+
+  # Para poder probarlo sin esperar al siguiente hueco.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Despertar el API
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Comprobar que hay una URL configurada
+        id: check
+        run: |
+          if [ -z "${{ vars.API_HEALTH_URL }}" ]; then
+            echo "Sin API_HEALTH_URL: no hay nada desplegado que mantener despierto."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Llamar a /healthz
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          # --max-time 90 porque un servicio dormido tarda cerca de un minuto
+          # en levantar, y ésa es justamente la petición que lo despierta.
+          #
+          # --retry 2 con espera porque el primer intento contra un servicio
+          # frío puede cortarse antes de que termine de arrancar.
+          curl --fail --silent --show-error \
+               --max-time 90 --retry 2 --retry-delay 30 \
+               "${{ vars.API_HEALTH_URL }}"
+          echo
