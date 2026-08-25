@@ -102,3 +102,19 @@ export const presence = (page: Page) => page.getByRole("region", { name: /presen
  * ambigüedad. Acotarlo al contenido deja fuera al anunciador del framework.
  */
 export const alertIn = (page: Page) => page.getByRole("main").getByRole("alert");
+
+/**
+ * Cierra la sesión y espera a que termine de verdad.
+ *
+ * Salir dejó de ser instantáneo: ahora es un server action que avisa al API
+ * para invalidar el refresh token y borra las cookies, y sólo después navega.
+ * Un test que pulse y navegue en la línea siguiente lo hace con las cookies
+ * todavía puestas, y el proxy lo devuelve al chat — que es justo lo que debe
+ * hacer con una sesión abierta.
+ *
+ * Esperar a `/login` es esperar al efecto observable, no a un tiempo fijo.
+ */
+export async function signOut(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Salir" }).click();
+  await page.waitForURL("**/login");
+}

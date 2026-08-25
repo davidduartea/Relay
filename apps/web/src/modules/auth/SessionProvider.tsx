@@ -1,109 +1,52 @@
 "use client";
 
-import type { AuthSession, AuthUser } from "@relay/shared";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import type { AuthUser } from "@relay/shared";
+import { useRouter } from "next/navigation";
+import { createContext, useCallback, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
 
-import { api } from "@/services/api-service";
-import { clearSession, readSession, writeSession } from "@/lib/session-store";
-import { createTokenRefresher } from "@/lib/token-refresher";
+import { requestSocketTicket, signOut as signOutAction } from "./actions";
 
 interface SessionValue {
-  user: AuthUser | null;
-  accessToken: string | null;
-  /** Falso hasta que se ha leído localStorage, para no parpadear al login. */
-  ready: boolean;
-  signIn: (session: AuthSession) => void;
-  signOut: () => Promise<void>;
+  user: AuthUser;
   /**
-   * Renueva la sesión y devuelve el nuevo access token, o `null` si el refresh
-   * ya no vale — en cuyo caso la sesión local queda limpia y toca volver a
-   * entrar. Las llamadas concurrentes comparten una sola petición.
+   * Pide un ticket para abrir el socket.
+   *
+   * Devuelve `null` cuando la sesión ya no vale, que es la señal para dejar de
+   * reintentar y mandar al login.
    */
-  refresh: () => Promise<string | null>;
+  getSocketTicket: () => Promise<string | null>;
+  signOut: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [ready, setReady] = useState(false);
-
-  // La lectura va en un efecto y no en el estado inicial porque localStorage
-  // no existe en el servidor: leerlo durante el render daría un HTML distinto
-  // al del cliente y React avisaría de la discrepancia de hidratación.
-  useEffect(() => {
-    setSession(readSession());
-    setReady(true);
-  }, []);
-
-  // El deduplicador vive en una ref para que sobreviva a los re-render: si se
-  // recreara en cada uno, cada render tendría su propia promesa "en vuelo" y
-  // la deduplicación no serviría de nada.
-  const refreshSession = useRef(createTokenRefresher(api.refresh)).current;
-
-  const signIn = useCallback((next: AuthSession) => {
-    writeSession(next);
-    setSession(next);
-  }, []);
+/**
+ * La sesión en el cliente, que ya casi no existe.
+ *
+ * Antes guardaba el access y el refresh en `localStorage` y los renovaba desde
+ * aquí. Ahora los tokens viven en cookies `httpOnly` y este contexto sólo
+ * conoce **quién** eres — nunca **cómo** demostrarlo.
+ *
+ * El usuario llega desde el servidor, no de una lectura de `localStorage` en
+ * un efecto, así que desaparece el estado `ready` y el parpadeo que obligaba a
+ * pintar «Cargando…» en el primer render de cada pantalla.
+ */
+export function SessionProvider({ user, children }: { user: AuthUser; children: ReactNode }) {
+  const router = useRouter();
 
   const signOut = useCallback(async () => {
-    // El estado local se limpia pase lo que pase: si la llamada falla, el
-    // usuario igualmente quiso salir, y dejarlo dentro sería peor que no
-    // haber invalidado el refresh en el servidor.
-    try {
-      if (session) {
-        await api.logout(session.tokens.accessToken);
-      }
-    } finally {
-      clearSession();
-      setSession(null);
-    }
-  }, [session]);
+    await signOutAction();
 
-  const refresh = useCallback(async (): Promise<string | null> => {
-    // Se lee de localStorage y no del estado porque puede haber otra pestaña
-    // que ya renovó: el estado de este componente estaría desactualizado y
-    // mandaríamos un refresh token que el servidor acaba de rotar.
-    const stored = readSession();
-
-    if (!stored) {
-      return null;
-    }
-
-    const renewed = await refreshSession(stored.tokens.refreshToken);
-
-    if (!renewed) {
-      clearSession();
-      setSession(null);
-
-      return null;
-    }
-
-    writeSession(renewed);
-    setSession(renewed);
-
-    return renewed.tokens.accessToken;
-  }, [refreshSession]);
+    // `refresh()` además de navegar: sin él, el árbol de servidor cacheado
+    // seguiría teniendo al usuario dentro y volver atrás lo mostraría.
+    router.replace("/login");
+    router.refresh();
+  }, [router]);
 
   const value = useMemo<SessionValue>(
-    () => ({
-      user: session?.user ?? null,
-      accessToken: session?.tokens.accessToken ?? null,
-      ready,
-      signIn,
-      signOut,
-      refresh,
-    }),
-    [session, ready, signIn, signOut, refresh],
+    () => ({ user, getSocketTicket: requestSocketTicket, signOut }),
+    [user, signOut],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -113,7 +56,7 @@ export function useSession(): SessionValue {
   const value = useContext(SessionContext);
 
   if (!value) {
-    throw new Error("useSession debe usarse dentro de <SessionProvider>");
+    throw new Error("useSession fuera de <SessionProvider>");
   }
 
   return value;

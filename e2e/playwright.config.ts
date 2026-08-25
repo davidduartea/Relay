@@ -22,7 +22,9 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   workers: isCI ? 1 : undefined,
 
-  reporter: isCI ? [["github"], ["html", { open: "never" }]] : [["list"], ["html", { open: "never" }]],
+  reporter: isCI
+    ? [["github"], ["html", { open: "never" }]]
+    : [["list"], ["html", { open: "never" }]],
 
   use: {
     baseURL: WEB_URL,
@@ -71,6 +73,11 @@ export default defineConfig({
       timeout: 120_000,
       stdout: "pipe",
       stderr: "pipe",
+
+      // `API_URL` es obligatoria en producción y ya no se incrusta al
+      // compilar: la lee el servidor al arrancar. Se declara aquí para que la
+      // suite no dependa de un `.env.local` que no está versionado.
+      env: { API_URL },
     },
   ],
 });

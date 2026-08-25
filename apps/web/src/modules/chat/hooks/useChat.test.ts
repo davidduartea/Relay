@@ -21,6 +21,7 @@ function createFakeSocket() {
     }),
     emit: vi.fn(),
     emitWithAck: vi.fn().mockResolvedValue({ ok: true, data: {} }),
+    connect: vi.fn(),
     disconnect: vi.fn(),
     removeAllListeners: vi.fn(),
     /** Dispara un evento como si viniera del servidor. */
@@ -34,12 +35,33 @@ function createFakeSocket() {
 
 let fakeSocket = createFakeSocket();
 
-vi.mock("socket.io-client", () => ({
-  io: vi.fn(() => fakeSocket),
+type SocketOptions = { auth: (done: (data: unknown) => void) => void };
+
+/**
+ * El mock de `io`, expuesto para inspeccionar las opciones que recibe.
+ *
+ * Va dentro de `vi.hoisted` porque `vi.mock` se eleva al principio del
+ * archivo: una constante normal todavía no existiría cuando la fábrica del
+ * mock la usa, y el módulo falla con «Cannot access before initialization».
+ * 📖 https://vitest.dev/api/vi.html#vi-hoisted
+ */
+const { ioMock } = vi.hoisted(() => ({
+  ioMock: vi.fn<(url: string, options: SocketOptions) => unknown>(),
 }));
+
+vi.mock("socket.io-client", () => ({ io: ioMock }));
+
+/** Las opciones con las que se creó el socket en este test. */
+const socketOptions = () => ioMock.mock.calls[0]![1];
 
 const ANA = { id: "user-ana", displayName: "Ana" };
 const ROOM = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
+/** La entrega el servidor en el render, no una variable del bundle. */
+const SOCKET_URL = "http://localhost:4000";
+
+/** El proveedor de tickets, que en la aplicación es un server action. */
+const getTicket = vi.fn<() => Promise<string | null>>(() => Promise.resolve("un-ticket"));
 
 const message = (overrides: Partial<Message> = {}): Message => ({
   id: "m1",
@@ -56,23 +78,17 @@ describe("useChat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fakeSocket = createFakeSocket();
+    ioMock.mockReturnValue(fakeSocket);
+    getTicket.mockResolvedValue("un-ticket");
   });
 
-  it("engancha los listeners cuando el token llega DESPUÉS del primer render", async () => {
-    // REGRESIÓN: la sesión se lee de localStorage en un efecto, así que en el
-    // primer render no hay token y no hay socket. Cuando el socket vivía en una
-    // ref, el efecto que registra los listeners corría una sola vez, con la ref
-    // aún vacía, y no volvía a correr: al recargar la página el chat aparecía
-    // sin historial y sin presencia para siempre.
-    const { rerender } = renderHook(
-      ({ token }: { token: string | null }) =>
-        useChat({ accessToken: token, roomId: ROOM, currentUser: ANA }),
-      { initialProps: { token: null as string | null } },
+  it("engancha los listeners desde el primer render", async () => {
+    // El socket se crea ya, sin esperar al ticket: `auth` es una función que
+    // Socket.IO llama al conectar. Antes había que esperar a leer el token de
+    // localStorage, y el efecto de los listeners llegaba tarde.
+    renderHook(() =>
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
     );
-
-    expect(fakeSocket.on).not.toHaveBeenCalled();
-
-    rerender({ token: "un-token" });
 
     await waitFor(() => {
       expect(fakeSocket.listeners.has("message:history")).toBe(true);
@@ -80,9 +96,25 @@ describe("useChat", () => {
     });
   });
 
+  it("pide un ticket nuevo en cada intento de conexión", async () => {
+    // Un ticket vale una sola vez. Si `auth` fuera un objeto fijo, la
+    // reconexión reenviaría el mismo, gastado, y no volvería a conectar nunca.
+    renderHook(() =>
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
+    );
+
+    const options = socketOptions();
+    const first = await new Promise((resolve) => options.auth(resolve));
+    const second = await new Promise((resolve) => options.auth(resolve));
+
+    expect(first).toEqual({ ticket: "un-ticket" });
+    expect(second).toEqual({ ticket: "un-ticket" });
+    expect(getTicket).toHaveBeenCalledTimes(2);
+  });
+
   it("carga el historial que manda el servidor al entrar", async () => {
     const { result } = renderHook(() =>
-      useChat({ accessToken: "un-token", roomId: ROOM, currentUser: ANA }),
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
     );
 
     await waitFor(() => expect(fakeSocket.listeners.has("message:history")).toBe(true));
@@ -94,7 +126,7 @@ describe("useChat", () => {
 
   it("reemplaza el mensaje optimista en vez de duplicarlo al confirmarse", async () => {
     const { result } = renderHook(() =>
-      useChat({ accessToken: "un-token", roomId: ROOM, currentUser: ANA }),
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
     );
 
     await waitFor(() => expect(fakeSocket.listeners.has("message:new")).toBe(true));
@@ -127,7 +159,7 @@ describe("useChat", () => {
 
   it("retira el optimista cuando el servidor rechaza el envío", async () => {
     const { result } = renderHook(() =>
-      useChat({ accessToken: "un-token", roomId: ROOM, currentUser: ANA }),
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
     );
 
     await waitFor(() => expect(fakeSocket.listeners.has("message:new")).toBe(true));
@@ -145,24 +177,41 @@ describe("useChat", () => {
     expect(result.current.error).toBe("No estás en esa sala");
   });
 
-  it("distingue un token inválido de una caída de red", async () => {
+  it("trata un fallo de conexión con sesión válida como caída de red", async () => {
+    // Un ticket gastado o caducado ocurre en cada reconexión normal. Marcarlo
+    // como sesión perdida mandaría al login cada vez que se va el wifi.
     const { result } = renderHook(() =>
-      useChat({ accessToken: "un-token", roomId: ROOM, currentUser: ANA }),
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
     );
 
     await waitFor(() => expect(fakeSocket.listeners.has("connect_error")).toBe(true));
 
-    act(() => fakeSocket.fire("connect_error", new Error("Token inválido o expirado")));
+    act(() => fakeSocket.fire("connect_error", new Error("Ticket ya usado")));
 
-    // Con la red caída hay que reintentar; con un token malo, dejar de hacerlo
-    // y mandar al login. Tratarlos igual deja al usuario en un bucle.
+    expect(result.current.status).toBe("offline");
+  });
+
+  it("marca sesión perdida cuando ya no hay ticket que pedir", async () => {
+    // `getTicket` devuelve null cuando el refresh tampoco vale. Es la única
+    // señal fiable de que hay que volver a entrar.
+    getTicket.mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() =>
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
+    );
+
+    const options = socketOptions();
+    await new Promise((resolve) => options.auth(resolve));
+
+    await waitFor(() => expect(fakeSocket.listeners.has("connect_error")).toBe(true));
+    act(() => fakeSocket.fire("connect_error", new Error("Falta el ticket de conexión")));
+
     expect(result.current.status).toBe("unauthorized");
-    expect(fakeSocket.disconnect).toHaveBeenCalled();
   });
 
   it("saca de la presencia a quien se desconecta", async () => {
     const { result } = renderHook(() =>
-      useChat({ accessToken: "un-token", roomId: ROOM, currentUser: ANA }),
+      useChat({ getTicket, socketUrl: SOCKET_URL, roomId: ROOM, currentUser: ANA }),
     );
 
     await waitFor(() => expect(fakeSocket.listeners.has("presence:sync")).toBe(true));

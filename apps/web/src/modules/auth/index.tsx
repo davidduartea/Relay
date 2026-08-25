@@ -6,28 +6,25 @@ import {
   loginSchema,
   registerSchema,
 } from "@relay/shared";
-import type { AuthSession } from "@relay/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
-import { ApiError, api } from "@/services/api-service";
 import { formatCountdown } from "@/lib/format-time";
 import { Alert } from "@/components/Alert";
 import { Rule } from "@/components/Rule";
 import { Wordmark } from "@/components/Wordmark";
 import { AUTH_COPY } from "@/modules/auth/constants";
+import { signIn, signUp } from "@/modules/auth/actions";
 import { Field } from "@/modules/auth/components/Field";
 import { PasswordField } from "@/modules/auth/components/PasswordField";
-import { useSession } from "@/modules/auth/SessionProvider";
 import type { AuthMode } from "@/modules/auth/constants";
 
 type FieldErrors = Record<string, string>;
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
-  const { signIn } = useSession();
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -85,52 +82,24 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     }
   }
 
-  function showApiError(error: unknown) {
-    if (error instanceof ApiError && error.retryAfter) {
-      setWaitSeconds(error.retryAfter);
-      setFormError("Demasiados intentos");
-    } else if (error instanceof ApiError && error.fields.length > 0) {
-      showFieldErrors(
-        Object.fromEntries(error.fields.map(({ field, message }) => [field, message])),
-      );
-    } else if (error instanceof ApiError) {
-      setFormError(error.message);
-    } else {
-      setOffline(true);
-      setFormError("No se pudo conectar.");
-    }
-  }
-
   /**
-   * Cada modo valida y envía con su propio esquema.
+   * Validación en el cliente, para responder sin ida y vuelta.
    *
-   * Antes era una rama ternaria seguida de `api.login(parsed.data as never)`:
-   * un solo `safeParse` no puede producir a la vez `LoginInput` y
-   * `RegisterInput`, y el cast tapaba justamente eso. Separadas, TypeScript
-   * comprueba el contrato con el servidor de verdad.
+   * No es la que cuenta: el server action valida otra vez con **el mismo
+   * esquema** antes de tocar el API. Ésta sólo evita un viaje para lo que ya
+   * se ve desde aquí — un correo mal escrito, una contraseña corta.
    */
-  async function authenticate(data: Record<string, unknown>): Promise<AuthSession | null> {
-    if (mode === "login") {
-      const parsed = loginSchema.safeParse(data);
+  function validate(data: Record<string, unknown>): boolean {
+    const schema = mode === "login" ? loginSchema : registerSchema;
+    const parsed = schema.safeParse(data);
 
-      if (!parsed.success) {
-        showFieldErrors(issuesToErrors(parsed.error.issues));
-
-        return null;
-      }
-
-      return api.login(parsed.data);
+    if (parsed.success) {
+      return true;
     }
 
-    const parsed = registerSchema.safeParse(data);
+    showFieldErrors(issuesToErrors(parsed.error.issues));
 
-    if (!parsed.success) {
-      showFieldErrors(issuesToErrors(parsed.error.issues));
-
-      return null;
-    }
-
-    return api.register(parsed.data);
+    return false;
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -141,22 +110,38 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
     const data = Object.fromEntries(new FormData(event.currentTarget));
 
+    if (!validate(data)) {
+      return;
+    }
+
     setBusy(true);
 
-    try {
-      const session = await authenticate(data);
+    // El server action habla con el API y guarda la sesión en cookies
+    // httpOnly. Lo que vuelve es el usuario, nunca un token: eso es lo que
+    // hace que un XSS no tenga nada que robar.
+    const result = mode === "login" ? await signIn(data) : await signUp(data);
 
-      if (!session) {
-        setBusy(false);
+    if ("id" in result) {
+      // `refresh()` además de navegar: el árbol de servidor está cacheado sin
+      // sesión, y sin esto `/chat` se renderizaría con el usuario de antes.
+      router.replace("/chat");
+      router.refresh();
 
-        return;
-      }
+      return;
+    }
 
-      signIn(session);
-      router.push("/chat");
-    } catch (error) {
-      showApiError(error);
-      setBusy(false);
+    setBusy(false);
+
+    if (result.retryAfter) {
+      setWaitSeconds(result.retryAfter);
+      setFormError(result.error ?? "Demasiados intentos");
+    } else if (result.fieldErrors) {
+      showFieldErrors(result.fieldErrors);
+    } else if (result.error === "No se pudo conectar.") {
+      setOffline(true);
+      setFormError(result.error);
+    } else {
+      setFormError(result.error ?? "Algo salió mal. Inténtalo de nuevo.");
     }
   }
 

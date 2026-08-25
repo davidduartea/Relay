@@ -59,8 +59,8 @@ COPY apps/web ./apps/web
 # La URL del API se incrusta en el bundle: las variables NEXT_PUBLIC_* se
 # resuelven al construir, no al arrancar. Cambiar de entorno exige reconstruir
 # — es la contrapartida de que el navegador pueda leerlas.
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG API_URL=http://localhost:4000
+ENV API_URL=${API_URL}
 
 ENV NEXT_TELEMETRY_DISABLED=1
 

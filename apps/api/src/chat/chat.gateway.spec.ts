@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { MessagesService } from "../messages/messages.service";
 import { RoomsService } from "../rooms/rooms.service";
+import { SocketTicketService } from "../auth/socket-ticket.service";
 import { ChatGateway } from "./chat.gateway";
 
 const ENV: Record<string, string> = {
@@ -38,14 +39,15 @@ describe("ChatGateway (integración)", () => {
 
   let app: INestApplication;
   let jwt: JwtService;
+  let tickets: SocketTicketService;
   let url: string;
   const open: ClientSocket[] = [];
 
   /** Conecta un cliente y espera a que el servidor acepte o cierre. */
-  function connect(token?: string): Promise<ClientSocket> {
+  function connect(ticket?: string): Promise<ClientSocket> {
     const socket: ClientSocket = io(url, {
       transports: ["websocket"],
-      auth: token ? { token } : {},
+      auth: ticket ? { ticket } : {},
       reconnection: false,
     });
 
@@ -78,7 +80,10 @@ describe("ChatGateway (integración)", () => {
     timeoutMs = 2000,
   ): Promise<Parameters<ServerToClientEvents[K]>[0]> {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`sin "${String(event)}" a tiempo`)), timeoutMs);
+      const timer = setTimeout(
+        () => reject(new Error(`sin "${String(event)}" a tiempo`)),
+        timeoutMs,
+      );
 
       untyped(socket).once(String(event), (payload) => {
         clearTimeout(timer);
@@ -90,11 +95,19 @@ describe("ChatGateway (integración)", () => {
   const join = (socket: ClientSocket, roomId = ROOM_ID) =>
     socket.emitWithAck("room:join", { roomId }) as Promise<Ack<{ roomId: string }>>;
 
-  const tokenFor = (payload: object) => jwt.signAsync(payload, { secret: ENV["JWT_ACCESS_SECRET"] });
+  /** Un ticket recién emitido para ese usuario. */
+  const ticketFor = async (user: typeof ANA) => (await tickets.issue(user)).ticket;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      providers: [ChatGateway, MessagesService, RoomsService, JwtService, ConfigService],
+      providers: [
+        ChatGateway,
+        MessagesService,
+        RoomsService,
+        SocketTicketService,
+        JwtService,
+        ConfigService,
+      ],
     })
       .overrideProvider(MessagesService)
       .useValue(messages)
@@ -106,6 +119,7 @@ describe("ChatGateway (integración)", () => {
 
     app = moduleRef.createNestApplication();
     jwt = moduleRef.get(JwtService);
+    tickets = moduleRef.get(SocketTicketService);
 
     // Puerto 0: el sistema asigna uno libre, así que los tests no chocan con
     // un servidor de desarrollo levantado ni entre ejecuciones en paralelo.
@@ -127,36 +141,58 @@ describe("ChatGateway (integración)", () => {
   });
 
   describe("autenticación en el handshake", () => {
-    it("rechaza una conexión sin token", async () => {
+    it("rechaza una conexión sin ticket", async () => {
       await expect(connect()).rejects.toThrow();
     });
 
-    it("rechaza un token firmado con otro secreto", async () => {
-      const token = await jwt.signAsync(ANA, { secret: "b".repeat(32) });
+    it("rechaza un ticket firmado con otro secreto", async () => {
+      const forged = await jwt.signAsync(
+        { ...ANA, typ: "socket", jti: "falso" },
+        { secret: "b".repeat(32) },
+      );
 
-      await expect(connect(token)).rejects.toThrow();
+      await expect(connect(forged)).rejects.toThrow();
     });
 
-    it("rechaza un token expirado", async () => {
-      const token = await jwt.signAsync(ANA, {
-        secret: ENV["JWT_ACCESS_SECRET"],
-        expiresIn: "-1s",
-      });
+    it("rechaza un ticket caducado", async () => {
+      const stale = await jwt.signAsync(
+        { ...ANA, typ: "socket", jti: "viejo" },
+        { secret: ENV["JWT_ACCESS_SECRET"], expiresIn: "-1s" },
+      );
 
-      await expect(connect(token)).rejects.toThrow();
+      await expect(connect(stale)).rejects.toThrow();
     });
 
-    it("acepta un token válido", async () => {
-      const socket = await connect(await tokenFor(ANA));
+    it("rechaza un access token normal", async () => {
+      // Sin la marca `typ`, un access token robado abriría el socket: los dos
+      // llevan la misma firma y el mismo payload, y sólo se distinguen por
+      // ahí. Es la razón de que la marca exista.
+      const accessToken = await jwt.signAsync(ANA, { secret: ENV["JWT_ACCESS_SECRET"] });
+
+      await expect(connect(accessToken)).rejects.toThrow();
+    });
+
+    it("acepta un ticket válido", async () => {
+      const socket = await connect(await ticketFor(ANA));
 
       expect(socket.connected).toBe(true);
+    });
+
+    it("rechaza el mismo ticket una segunda vez", async () => {
+      // Es lo que acota el daño de un XSS: el ticket queda expuesto al
+      // JavaScript, pero sólo sirve para la conexión que ya se hizo.
+      const ticket = await ticketFor(ANA);
+
+      await connect(ticket);
+
+      await expect(connect(ticket)).rejects.toThrow();
     });
   });
 
   describe("room:join", () => {
     it("responde con ack de error si la sala no existe", async () => {
       rooms.existsById.mockResolvedValue(false);
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
 
       const ack = await join(socket);
 
@@ -164,9 +200,11 @@ describe("ChatGateway (integración)", () => {
     });
 
     it("responde con ack de error si el roomId no es un uuid", async () => {
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
 
-      const ack = (await socket.emitWithAck("room:join", { roomId: "no-es-uuid" })) as Ack<unknown>;
+      const ack = (await socket.emitWithAck("room:join", {
+        roomId: "no-es-uuid",
+      })) as Ack<unknown>;
 
       expect(ack).toMatchObject({ ok: false, error: { code: "VALIDATION_FAILED" } });
     });
@@ -174,7 +212,7 @@ describe("ChatGateway (integración)", () => {
     it("manda el historial a quien entra", async () => {
       const historic = [{ id: "m1", body: "hola" }];
       messages.history.mockResolvedValue(historic);
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
 
       const history = nextEvent(socket, "message:history");
       await join(socket);
@@ -183,11 +221,11 @@ describe("ChatGateway (integración)", () => {
     });
 
     it("avisa a los que ya estaban, pero no a quien entra", async () => {
-      const ana = await connect(await tokenFor(ANA));
+      const ana = await connect(await ticketFor(ANA));
       await join(ana);
 
       const anaSeesJoin = nextEvent(ana, "presence:join");
-      const benito = await connect(await tokenFor(BENITO));
+      const benito = await connect(await ticketFor(BENITO));
       await join(benito);
 
       await expect(anaSeesJoin).resolves.toMatchObject({
@@ -197,10 +235,10 @@ describe("ChatGateway (integración)", () => {
     });
 
     it("cuenta una sola vez a un usuario con dos pestañas", async () => {
-      const first = await connect(await tokenFor(ANA));
+      const first = await connect(await ticketFor(ANA));
       await join(first);
 
-      const second = await connect(await tokenFor(ANA));
+      const second = await connect(await ticketFor(ANA));
       const sync = nextEvent(second, "presence:sync");
       await join(second);
 
@@ -211,7 +249,7 @@ describe("ChatGateway (integración)", () => {
 
   describe("message:send", () => {
     it("rechaza escribir en una sala en la que no se ha entrado", async () => {
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
 
       const ack = await socket.emitWithAck("message:send", {
         roomId: ROOM_ID,
@@ -224,7 +262,7 @@ describe("ChatGateway (integración)", () => {
     });
 
     it("rechaza un mensaje vacío", async () => {
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
       await join(socket);
 
       const ack = await socket.emitWithAck("message:send", {
@@ -243,7 +281,7 @@ describe("ChatGateway (integración)", () => {
       // precisamente la primera línea de defensa que aquí se está saltando.
       const stored = { id: "m1", authorId: ANA.sub } as Message;
       messages.create.mockResolvedValue(stored);
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
       await join(socket);
 
       await untyped(socket).emitWithAck("message:send", {
@@ -262,8 +300,8 @@ describe("ChatGateway (integración)", () => {
       const stored = { id: "m1", roomId: ROOM_ID, body: "hola" } as Message;
       messages.create.mockResolvedValue(stored);
 
-      const ana = await connect(await tokenFor(ANA));
-      const benito = await connect(await tokenFor(BENITO));
+      const ana = await connect(await ticketFor(ANA));
+      const benito = await connect(await ticketFor(BENITO));
       await Promise.all([join(ana), join(benito)]);
 
       const delivered = nextEvent(benito, "message:new");
@@ -279,7 +317,7 @@ describe("ChatGateway (integración)", () => {
     it("también se lo devuelve al autor, para reconciliar su copia optimista", async () => {
       const stored = { id: "m1", roomId: ROOM_ID, body: "hola" } as Message;
       messages.create.mockResolvedValue(stored);
-      const ana = await connect(await tokenFor(ANA));
+      const ana = await connect(await ticketFor(ANA));
       await join(ana);
 
       const echo = nextEvent(ana, "message:new");
@@ -294,7 +332,7 @@ describe("ChatGateway (integración)", () => {
 
     it("responde con ack de error si falla el guardado", async () => {
       messages.create.mockRejectedValue(new Error("base caída"));
-      const socket = await connect(await tokenFor(ANA));
+      const socket = await connect(await ticketFor(ANA));
       await join(socket);
 
       const ack = await socket.emitWithAck("message:send", {
@@ -309,8 +347,8 @@ describe("ChatGateway (integración)", () => {
 
   describe("presencia", () => {
     it("avisa a la sala cuando alguien se desconecta", async () => {
-      const ana = await connect(await tokenFor(ANA));
-      const benito = await connect(await tokenFor(BENITO));
+      const ana = await connect(await ticketFor(ANA));
+      const benito = await connect(await ticketFor(BENITO));
       await Promise.all([join(ana), join(benito)]);
 
       const left = nextEvent(ana, "presence:leave");
@@ -320,8 +358,8 @@ describe("ChatGateway (integración)", () => {
     });
 
     it("propaga el indicador de escritura al resto", async () => {
-      const ana = await connect(await tokenFor(ANA));
-      const benito = await connect(await tokenFor(BENITO));
+      const ana = await connect(await ticketFor(ANA));
+      const benito = await connect(await ticketFor(BENITO));
       await Promise.all([join(ana), join(benito)]);
 
       const typing = nextEvent(benito, "typing:update");

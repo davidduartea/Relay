@@ -2,13 +2,12 @@
 
 import type { Room } from "@relay/shared";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/modules/auth/SessionProvider";
 import { Alert } from "@/components/Alert";
 import { IconButton } from "@/components/IconButton";
 import { Overlay } from "@/components/Overlay";
-import { Rule } from "@/components/Rule";
 import { Seal } from "@/components/Seal";
 import { Wordmark } from "@/components/Wordmark";
 import { ConnectionBadge } from "@/modules/chat/components/ConnectionBadge";
@@ -23,19 +22,16 @@ import { useChat } from "@/modules/chat/hooks/useChat";
 /** Qué panel modal está abierto. Sólo existen en móvil. */
 type Panel = "rooms" | "presence" | null;
 
-export function ChatScreen({ rooms }: { rooms: Room[] }) {
+export function ChatScreen({ rooms, socketUrl }: { rooms: Room[]; socketUrl: string }) {
   const router = useRouter();
-  const { user, accessToken, ready, signOut, refresh } = useSession();
+  const { user, getSocketTicket, signOut } = useSession();
 
   // Las salas llegan del servidor ya resueltas, así que la sala inicial se
   // elige en el primer render y no después de una ida y vuelta.
   const [roomId, setRoomId] = useState<string | null>(rooms[0]?.id ?? null);
   const [panel, setPanel] = useState<Panel>(null);
 
-  // Qué access token ya provocó un intento de renovación.
-  const refreshedFor = useRef<string | null>(null);
-
-  const chat = useChat({ accessToken, roomId, currentUser: user });
+  const chat = useChat({ getTicket: getSocketTicket, socketUrl, roomId, currentUser: user });
 
   // Identidad estable: el efecto de `Overlay` depende de ella, y una flecha en
   // línea la cambiaría en cada render de esta pantalla — que renderiza con cada
@@ -48,59 +44,27 @@ export function ChatScreen({ rooms }: { rooms: Room[] }) {
   }, []);
 
   const leave = useCallback(() => {
-    void signOut().then(() => router.replace("/login"));
-  }, [signOut, router]);
-
-  // Sin sesión no hay nada que mostrar. Se espera a `ready` para no rebotar al
-  // login durante el primer render, cuando localStorage aún no se ha leído.
-  useEffect(() => {
-    if (ready && !user) {
-      router.replace("/login");
-    }
-  }, [ready, user, router]);
+    void signOut();
+  }, [signOut]);
 
   /**
-   * Token caducado: se intenta renovar antes de rendirse.
+   * La sesión se perdió del todo.
    *
-   * El access token dura 15 minutos y el refresh una semana, así que lo normal
-   * es que la sesión siga viva. Si la renovación funciona, el `accessToken` del
-   * contexto cambia y el efecto de conexión de `useChat` vuelve a correr con el
-   * nuevo — el socket se reconecta solo y el usuario no se entera.
+   * `unauthorized` ya no significa «el access caducó» — de eso se encarga el
+   * proxy antes de renderizar, y de un ticket gastado se encarga la propia
+   * reconexión. Llega aquí sólo cuando no hay ticket que pedir, es decir
+   * cuando el refresh tampoco vale. Entonces la única salida es volver a
+   * entrar.
    *
-   * Sólo cuando el refresh también ha caducado se manda al login.
+   * Ya no hace falta la guarda contra el bucle de renovación: renovar dejó de
+   * ser cosa de esta pantalla.
    */
   useEffect(() => {
-    if (chat.status !== "unauthorized") {
-      return;
-    }
-
-    // Un intento por token, y no más. Sin esta guarda, un token nuevo que el
-    // servidor también rechace volvería a disparar el efecto y el par
-    // renovar-reconectar se convertiría en un bucle caliente contra el API.
-    if (refreshedFor.current === accessToken) {
+    if (chat.status === "unauthorized") {
       router.replace("/login");
-
-      return;
+      router.refresh();
     }
-
-    refreshedFor.current = accessToken;
-
-    void refresh().then((renewed) => {
-      if (!renewed) {
-        router.replace("/login");
-      }
-    });
-  }, [chat.status, accessToken, refresh, router]);
-
-  if (!ready || !user) {
-    return (
-      <main id="main" className="flex min-h-dvh flex-col items-center justify-center gap-3.5">
-        <Wordmark />
-        <Rule />
-        <p className="text-ink-muted text-[13px]">Cargando tu sesión…</p>
-      </main>
-    );
-  }
+  }, [chat.status, router]);
 
   const room = rooms.find((candidate) => candidate.id === roomId);
   const roomName = room?.name ?? "Sala";

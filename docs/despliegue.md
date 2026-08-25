@@ -19,11 +19,11 @@ compensa: un solo proceso con estado hace el mismo trabajo.
 
 Así que:
 
-| | Dónde | Por qué |
-|---|---|---|
-| Web (Next.js) | Vercel | Estático y SSR, que es para lo que está |
-| API (NestJS + Socket.IO) | Railway | Un proceso con estado, sin instancias que se pisen |
-| Postgres | Railway | En el mismo proyecto que el API, sin salir a la red |
+|                          | Dónde   | Por qué                                             |
+| ------------------------ | ------- | --------------------------------------------------- |
+| Web (Next.js)            | Vercel  | Estático y SSR, que es para lo que está             |
+| API (NestJS + Socket.IO) | Railway | Un proceso con estado, sin instancias que se pisen  |
+| Postgres                 | Railway | En el mismo proyecto que el API, sin salir a la red |
 
 ---
 
@@ -70,14 +70,14 @@ y `packages/shared` —, que es justo el contexto que Railway usa por defecto.
 
 En **Variables** del servicio del API:
 
-| Variable | Valor |
-|---|---|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
-| `JWT_ACCESS_SECRET` | 32+ caracteres aleatorios |
+| Variable             | Valor                                                      |
+| -------------------- | ---------------------------------------------------------- |
+| `NODE_ENV`           | `production`                                               |
+| `DATABASE_URL`       | `${{Postgres.DATABASE_URL}}`                               |
+| `JWT_ACCESS_SECRET`  | 32+ caracteres aleatorios                                  |
 | `JWT_REFRESH_SECRET` | 32+ caracteres aleatorios, **distintos** de los anteriores |
-| `WEB_ORIGIN` | de momento cualquier URL válida; se corrige en el paso 3 |
-| `APP_VERSION` | opcional, sale en `/healthz` |
+| `WEB_ORIGIN`         | de momento cualquier URL válida; se corrige en el paso 3   |
+| `APP_VERSION`        | opcional, sale en `/healthz`                               |
 
 `PORT` **no se pone**: lo inyecta Railway y el esquema de entorno lo lee.
 
@@ -117,11 +117,11 @@ despliegue.
 
 **Add New** → **Project** → `davidduartea/Relay`.
 
-| Ajuste | Valor |
-|---|---|
-| Framework | Next.js |
-| **Root Directory** | `apps/web` |
-| Build Command | *dejar vacío* |
+| Ajuste             | Valor         |
+| ------------------ | ------------- |
+| Framework          | Next.js       |
+| **Root Directory** | `apps/web`    |
+| Build Command      | _dejar vacío_ |
 
 El comando se deja vacío a propósito: `apps/web/package.json` declara
 
@@ -135,13 +135,27 @@ construirlo antes, `next build` no encuentra el paquete.
 
 ### Variables
 
-| Variable | Valor |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | `https://TU-API.up.railway.app` |
+| Variable  | Valor                           |
+| --------- | ------------------------------- |
+| `API_URL` | `https://TU-API.up.railway.app` |
 
-**Se incrusta al compilar.** Definirla después del build no sirve de nada: hay
-que redesplegar. Si falta, el build falla con un mensaje que lo explica — es
-mejor que compilar una web que apunta a `localhost` sin avisar.
+**Sin prefijo `NEXT_PUBLIC_`, a propósito.** Con él, Next la incrusta en el
+JavaScript y cualquiera descubre el origen del backend descargando un chunk,
+sin tener cuenta. Ninguna petición HTTP sale ya del navegador — van todas por
+server actions — así que la dirección sólo la necesita el servidor.
+
+La excepción es el WebSocket, que el navegador tiene que abrir él. Esa
+dirección se entrega en el render de `/chat`, así que sólo la recibe quien ya
+tiene sesión.
+
+**Hace falta al compilar y al ejecutar, con el mismo valor.** Al compilar
+porque la CSP se genera entonces y su `connect-src` tiene que listar el origen
+del socket; al ejecutar, para las llamadas del servidor y para pasarle esa
+dirección al cliente. Si difieren, la aplicación arranca, el chat se pinta
+entero y la conexión se queda en «Sin conexión. Reintentando…» — el navegador
+la bloquea por CSP y no lo dice en ningún sitio visible.
+
+En Vercel basta con definirla una vez: sirve para los dos momentos.
 
 ---
 
@@ -209,4 +223,4 @@ el `docker-compose` de este repositorio, por ejemplo, donde el API es
 
 Con la web en Vercel y el API en Railway **no aplica**: son plataformas
 distintas y el servidor de Next sale por internet igual que el navegador. Se
-deja sin definir y cae a `NEXT_PUBLIC_API_URL`.
+deja sin definir y cae a `API_URL`.

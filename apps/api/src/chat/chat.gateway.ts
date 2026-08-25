@@ -1,6 +1,4 @@
 import { Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { JwtService } from "@nestjs/jwt";
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,12 +6,21 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from "@nestjs/websockets";
-import type { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit } from "@nestjs/websockets";
-import { ackError, ackOk, joinRoomSchema, sendMessageSchema, typingSchema } from "@relay/shared";
+import type {
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
+} from "@nestjs/websockets";
+import {
+  ackError,
+  ackOk,
+  joinRoomSchema,
+  sendMessageSchema,
+  typingSchema,
+} from "@relay/shared";
 import type {
   Ack,
   ClientToServerEvents,
-  JwtPayload,
   Message,
   PresenceUser,
   ServerToClientEvents,
@@ -21,6 +28,7 @@ import type {
 } from "@relay/shared";
 import type { Server, Socket } from "socket.io";
 
+import { SocketTicketService } from "../auth/socket-ticket.service";
 import { loadWebOrigin } from "../config/environment";
 import { MessagesService } from "../messages/messages.service";
 import { RoomsService } from "../rooms/rooms.service";
@@ -60,8 +68,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   constructor(
     private readonly messages: MessagesService,
     private readonly rooms: RoomsService,
-    private readonly jwt: JwtService,
-    private readonly config: ConfigService,
+    private readonly tickets: SocketTicketService,
   ) {}
 
   /**
@@ -78,27 +85,29 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
    * reintenta en bucle con el mismo token malo. Rechazar en el middleware le
    * llega como `connect_error`, que sí puede distinguir.
    *
-   * El token viaja en `auth` del handshake y no en la query string, porque las
-   * query strings acaban en los logs del proxy.
+   * Lo que viaja es un **ticket de un solo uso**, no la sesión: ésta vive en
+   * una cookie httpOnly que el navegador no puede leer. Va en `auth` del
+   * handshake y no en la query string, porque las query strings acaban en los
+   * logs del proxy.
    */
   afterInit(server: ChatServer): void {
     server.use((socket, next) => {
-      const token = socket.handshake.auth["token"] as unknown;
+      const ticket = socket.handshake.auth["ticket"] as unknown;
 
-      if (typeof token !== "string" || !token) {
-        return next(new Error("Falta el token de acceso"));
+      if (typeof ticket !== "string" || !ticket) {
+        return next(new Error("Falta el ticket de conexión"));
       }
 
-      this.jwt
-        .verifyAsync<JwtPayload>(token, {
-          secret: this.config.getOrThrow<string>("JWT_ACCESS_SECRET"),
-        })
+      // Se canjea, no se verifica: el ticket vale una sola vez. Un segundo
+      // handshake con el mismo se rechaza aunque la firma siga siendo válida.
+      this.tickets
+        .redeem(ticket)
         .then((payload) => {
           socket.data.userId = payload.sub;
           socket.data.displayName = payload.name;
           next();
         })
-        .catch(() => next(new Error("Token inválido o expirado")));
+        .catch(() => next(new Error("Ticket inválido, caducado o ya usado")));
     });
   }
 
@@ -180,7 +189,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       // Se devuelve por acknowledgement en vez de lanzar: una excepción en un
       // gateway llega al cliente como un evento suelto de error, sin forma de
       // saber qué envío la provocó. El ack va atado a esta llamada concreta.
-      return ackError("VALIDATION_FAILED", parsed.error.issues[0]?.message ?? "Mensaje inválido");
+      return ackError(
+        "VALIDATION_FAILED",
+        parsed.error.issues[0]?.message ?? "Mensaje inválido",
+      );
     }
 
     const { roomId, body, clientId } = parsed.data;

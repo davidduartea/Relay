@@ -11,8 +11,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
 
-import { API_URL } from "@/lib/api-url";
-
 /**
  * El socket del cliente, tipado con el mismo contrato que el gateway.
  *
@@ -34,12 +32,27 @@ export const isPending = (message: ChatMessage): message is PendingMessage =>
   "pending" in message;
 
 interface UseChatOptions {
-  accessToken: string | null;
+  /**
+   * Consigue un ticket para el handshake.
+   *
+   * No se recibe el ticket ya hecho porque dura 60 segundos y vale una vez: en
+   * cada reconexión hace falta uno nuevo, así que lo que se necesita es la
+   * forma de pedirlo, no el valor.
+   */
+  getTicket: () => Promise<string | null>;
+  /**
+   * Dónde está el socket.
+   *
+   * Llega como prop desde el render del servidor y no de una variable
+   * incrustada al compilar: así el origen del backend sólo lo recibe quien ya
+   * tiene sesión, en vez de cualquiera que descargue el JavaScript.
+   */
+  socketUrl: string;
   roomId: string | null;
-  currentUser: { id: string; displayName: string } | null;
+  currentUser: { id: string; displayName: string };
 }
 
-export function useChat({ accessToken, roomId, currentUser }: UseChatOptions) {
+export function useChat({ getTicket, socketUrl, roomId, currentUser }: UseChatOptions) {
   const [status, setStatus] = useState<ConnectionState>("connecting");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [members, setMembers] = useState<PresenceUser[]>([]);
@@ -50,51 +63,60 @@ export function useChat({ accessToken, roomId, currentUser }: UseChatOptions) {
   //
   // Con una ref, el efecto que registra los listeners no tiene de qué
   // depender: corre una sola vez, y en ese primer render el socket todavía no
-  // existe porque el token se lee de localStorage en otro efecto. Los
-  // listeners no llegaban a engancharse nunca y el chat aparecía vacío al
-  // recargar la página — que es como se abre casi siempre.
+  // existe porque el ticket se pide de forma asíncrona. Los listeners no
+  // llegaban a engancharse nunca y el chat aparecía vacío al recargar la
+  // página — que es como se abre casi siempre.
   const [socket, setSocket] = useState<ChatSocket | null>(null);
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   // ── Conexión ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!accessToken) {
-      setSocket(null);
+    /**
+     * Si el último intento se quedó sin ticket que pedir.
+     *
+     * Distingue «la sesión caducó» de «se cayó la red», que llegan las dos
+     * como `connect_error`. Con lo primero hay que parar y mandar al login;
+     * con lo segundo, reintentar es justo lo correcto.
+     */
+    let sessionLost = false;
 
-      return;
-    }
-
-    const socket: ChatSocket = io(`${API_URL}/chat`, {
+    /**
+     * `auth` como función y no como objeto.
+     *
+     * Socket.IO la vuelve a llamar en **cada** intento de conexión. Con un
+     * objeto fijo, la reconexión reenviaría el mismo ticket — que ya está
+     * gastado, porque vale una sola vez — y no volvería a conectar nunca.
+     * 📖 https://socket.io/docs/v4/client-options/#auth
+     */
+    const socket: ChatSocket = io(`${socketUrl}/chat`, {
       transports: ["websocket"],
-      auth: { token: accessToken },
+      autoConnect: false,
+      auth: (done) => {
+        void getTicket().then((ticket) => {
+          sessionLost = !ticket;
+          done({ ticket: ticket ?? "" });
+        });
+      },
     });
 
     setSocket(socket);
     setStatus("connecting");
 
-    socket.on("connect", () => setStatus("connected"));
-    socket.on("disconnect", () => setStatus("offline"));
-
-    socket.on("connect_error", (cause) => {
-      // El gateway rechaza en el handshake, así que un fallo de credenciales
-      // llega aquí y no como una desconexión. Distinguirlos importa: con un
-      // token malo hay que dejar de reintentar y mandar al login; con la red
-      // caída, reintentar es justo lo correcto.
-      const unauthorized = /token/i.test(cause.message);
-
-      setStatus(unauthorized ? "unauthorized" : "offline");
-
-      if (unauthorized) {
-        socket.disconnect();
-      }
+    socket.on("connect", () => {
+      sessionLost = false;
+      setStatus("connected");
     });
+    socket.on("disconnect", () => setStatus("offline"));
+    socket.on("connect_error", () => setStatus(sessionLost ? "unauthorized" : "offline"));
+
+    socket.connect();
 
     return () => {
       socket.removeAllListeners();
       socket.disconnect();
       setSocket(null);
     };
-  }, [accessToken]);
+  }, [getTicket, socketUrl]);
 
   // ── Entrar a la sala ──────────────────────────────────────────────────────
   useEffect(() => {

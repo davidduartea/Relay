@@ -5,7 +5,11 @@ import { NestFactory } from "@nestjs/core";
 import helmet from "helmet";
 
 import { AppModule } from "./app.module";
-import { assertProductionConfig, assertSecretsDiffer, loadEnvironment } from "./config/environment";
+import {
+  assertProductionConfig,
+  assertSecretsDiffer,
+  loadEnvironment,
+} from "./config/environment";
 
 async function bootstrap(): Promise<void> {
   // Se valida antes de construir la app para que un secreto mal puesto muera
@@ -34,7 +38,8 @@ async function bootstrap(): Promise<void> {
       // producción — en local no hay TLS que reforzar. El navegador ignoraría
       // la cabecera igualmente al llegar por http (RFC 6797 §8.1), pero no
       // enviarla deja más claro lo que se pretende.
-      hsts: env.NODE_ENV === "production" ? { maxAge: 31_536_000, includeSubDomains: true } : false,
+      hsts:
+        env.NODE_ENV === "production" ? { maxAge: 31_536_000, includeSubDomains: true } : false,
 
       // El API no se empotra en ningún sitio. helmet pone SAMEORIGIN por
       // defecto; DENY es lo correcto aquí y coincide con lo que manda la web.
